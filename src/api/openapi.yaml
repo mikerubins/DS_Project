@@ -37,20 +37,20 @@ tags:
     description: One task
 
 paths:
-  /v1/keys:
+  /v1/tasks:
     get:
-      tags: [keys]
-      operationId: getKeys
-      summary: Read several keys, sorted
+      tags: [tasks]
+      operationId: getTasks
+      summary: Read several tasks, sorted by task ID
       description: |
-        Select keys with at most one of `key` (repeatable), `prefix`, or
+        Select tasks with at most one of `task` (repeatable), `prefix`, or
         `from`/`to` (range [from, to)). No selector = all keys.
-        Missing keys are skipped.
+        Missing tasks are skipped.
       parameters:
-        - name: key
+        - name: task
           in: query
           required: false
-          description: Repeat for several keys (?key=a&key=b)
+          description: Repeat for several tasks (?task=a&task=b)
           schema:
             type: array
             items: { type: string }
@@ -74,10 +74,10 @@ paths:
           required: false
           description: Maximum number of entries (0 or absent = no limit)
           schema: { type: integer, format: int32, minimum: 0 }
-        - name: keysOnly
+        - name: tasksOnly
           in: query
           required: false
-          description: Return only the keys (values empty)
+          description: Return only the tasks (values empty)
           schema: { type: boolean, default: false }
         - $ref: '#/components/parameters/Consistency'
       responses:
@@ -88,15 +88,15 @@ paths:
               schema: { $ref: '#/components/schemas/EntryList' }
         '400': { $ref: '#/components/responses/Problem' }
     post:
-      tags: [keys]
-      operationId: setKeys
-      summary: Set several keys atomically
+      tags: [tasks]
+      operationId: setTasks
+      summary: Set several tasks atomically
       description: All or nothing. 412 if any `ifVersion` differs.
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/SetKeysBody' }
+            schema: { $ref: '#/components/schemas/SetTasksBody' }
       responses:
         '200':
           description: The entries after the write, in request order
@@ -106,15 +106,15 @@ paths:
         '400': { $ref: '#/components/responses/Problem' }
         '412': { $ref: '#/components/responses/Problem' }
     patch:
-      tags: [keys]
-      operationId: modifyKeys
+      tags: [tasks]
+      operationId: modifyTasks
       summary: Append to or increment several keys atomically (read-modify-write)
       description: All or nothing. 412 if any `ifVersion` differs.
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ModifyKeysBody' }
+            schema: { $ref: '#/components/schemas/ModifyTasksBody' }
       responses:
         '200':
           description: The entries after the operation, in request order
@@ -124,14 +124,14 @@ paths:
         '400': { $ref: '#/components/responses/Problem' }
         '412': { $ref: '#/components/responses/Problem' }
     delete:
-      tags: [keys]
-      operationId: deleteKeys
-      summary: Delete several keys atomically
+      tags: [tasks]
+      operationId: deleteTasks
+      summary: Delete several tasks atomically
       parameters:
         - name: key
           in: query
           required: true
-          description: Repeat for several keys (?key=a&key=b)
+          description: Repeat for several tasks (?task=a&task=b)
           schema:
             type: array
             items: { type: string }
@@ -140,19 +140,19 @@ paths:
           explode: true
       responses:
         '200':
-          description: How many of the keys existed
+          description: How many of the tasks existed
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DeleteResult' }
         '400': { $ref: '#/components/responses/Problem' }
 
-  /v1/keys/{key}:
+  /v1/keys/{task}:
     parameters:
-      - $ref: '#/components/parameters/Key'
+      - $ref: '#/components/parameters/Task'
     get:
-      tags: [key]
-      operationId: getKey
-      summary: Read one key
+      tags: [task]
+      operationId: getTask
+      summary: Read one task
       parameters:
         - $ref: '#/components/parameters/Consistency'
       responses:
@@ -165,9 +165,9 @@ paths:
               schema: { $ref: '#/components/schemas/Entry' }
         '404': { $ref: '#/components/responses/Problem' }
     post:
-      tags: [key]
-      operationId: setKey
-      summary: Set one key (create or replace)
+      tags: [task]
+      operationId: setTask
+      summary: Set one task (create or replace)
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -189,12 +189,12 @@ paths:
         '400': { $ref: '#/components/responses/Problem' }
         '412': { $ref: '#/components/responses/Problem' }
     patch:
-      tags: [key]
-      operationId: modifyKey
-      summary: Append to or increment one key (read-modify-write)
+      tags: [task]
+      operationId: modifyTask
+      summary: Append to or increment one task (read-modify-write)
       description: |
-        Give exactly one of `append` (missing key = "") or `increment`
-        (missing key = 0; the value must be an integer).
+        Give exactly one of `append` (missing task = "") or `increment`
+        (missing task = 0; the value must be an integer).
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -211,14 +211,14 @@ paths:
         '400': { $ref: '#/components/responses/Problem' }
         '412': { $ref: '#/components/responses/Problem' }
     delete:
-      tags: [key]
-      operationId: deleteKey
-      summary: Delete one key
+      tags: [task]
+      operationId: deleteTask
+      summary: Delete one task
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       responses:
         '204':
-          description: Deleted (also returned if the key did not exist)
+          description: Deleted (also returned if the task did not exist)
         '412': { $ref: '#/components/responses/Problem' }
 
 components:
