@@ -13,10 +13,10 @@ openapi: 3.0.3
 #   * errors are application/problem+json (RFC 9457)
 # ---------------------------------------------------------------------------
 info:
-  title: Replicated Key-Value Store
-  version: 2.0.0
+  title: Simple To-Do list
+  version: 1.0.0
   description: |
-    Client-facing RESTful API of the replicated key-value store.
+    Client-facing RESTful API of the Simple To-Do list.
 
     * Reads accept `?consistency=sequential|linearizable` (default: sequential).
       All writes are linearizable.
@@ -31,10 +31,10 @@ servers:
   - url: http://localhost:8080
     description: Node n1 (from Swagger Editor/UI containers; needs -cors-origin)
 tags:
-  - name: keys
-    description: Several keys at once (atomic)
-  - name: key
-    description: One key
+  - name: tasks
+    description: Several tasks at once (atomic)
+  - name: task
+    description: One task
 
 paths:
   /v1/keys:
