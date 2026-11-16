@@ -348,7 +348,7 @@ components:
       type: object
       required: [title, status]
       properties:
-        type: { type: string, default: about:blank }
-        title: { type: string, description: Short summary, e.g. "Not Found" }
-        status: { type: integer, description: The HTTP status code }
-        detail: { type: string, description: What went wrong in this case }
+        type: { type: string, default: "about:blank" }
+        title: { type: string, description: "Short summary, e.g. \"Not Found\"" }
+        status: { type: integer, description: "The HTTP status code" }
+        detail: { type: string, description: "What went wrong in this case" }
