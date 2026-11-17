@@ -43,8 +43,8 @@ paths:
       operationId: getTasks
       summary: Read several tasks, sorted by task ID
       description: |
-        Select tasks with at most one of `task` (repeatable), `prefix`, or
-        `from`/`to` (range [from, to)). No selector = all keys.
+        Select tasks with at most one of `task` (repeatable), `participant` (repeatable), `priority` (repeatable integer in [1,5]), `completed` (true/false), `prefix`, or
+        `from`/`to` (range [from, to) of tasks). No selector = all keys.
         Missing tasks are skipped.
       parameters:
         - name: task
@@ -56,6 +56,22 @@ paths:
             items: { type: string }
           style: form
           explode: true
+        - name: participant
+          in: query
+          required: false
+          description: Repeat for several participants (?participant=a&participant=b)
+          schema:
+            type: array
+            items: { type: string }
+          style: form
+          explode: true
+        - name: priority
+          in: query
+          required: false
+          description: Reapeat for several priorities in the range [1,5] (?priority=a&priority=b)
+          schema:
+            type: array
+            items: { type: integer, format: int32, minimum: 1, maximum: 5 }
         - name: prefix
           in: query
           required: false
@@ -69,6 +85,11 @@ paths:
           required: false
           schema: { type: string }
         - $ref: '#/components/parameters/Sort'
+        - name: completed
+          in: query
+          required: false
+          description: Choose between completed tasks (true) and open tasks (false)
+          schema: { type: boolean, default: true }
         - name: limit
           in: query
           required: false
