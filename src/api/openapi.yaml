@@ -223,8 +223,8 @@ paths:
 
 components:
   parameters:
-    Key:
-      name: key
+    Task:
+      name: task
       in: path
       required: true
       schema: { type: string }
@@ -237,11 +237,11 @@ components:
       name: sort
       in: query
       required: false
-      description: Sort field; prefix `-` for descending. Ties break by key.
+      description: Sort field; prefix `-` for descending. Ties break by task.
       schema:
         type: string
-        enum: [key, -key, value, -value, version, -version]
-        default: key
+        enum: [task, -task, value, -value, version, -version]
+        default: task
     IfMatch:
       name: If-Match
       in: header
@@ -269,14 +269,14 @@ components:
 
     Entry:
       type: object
-      required: [key, value, version]
+      required: [task, value, version]
       properties:
         key: { type: string }
         value: { type: string }
         version:
           type: integer
           format: int64
-          description: Incremented on every write of this key
+          description: Incremented on every write of this task
 
     EntryList:
       type: object
@@ -294,12 +294,11 @@ components:
 
     ModifyBody:
       type: object
-      description: Exactly one of `append` or `increment`
+      description: Exactly one of `append`
       properties:
         append: { type: string }
-        increment: { type: integer, format: int64 }
 
-    SetKeysBody:
+    SetTasksBody:
       type: object
       required: [entries]
       properties:
@@ -308,16 +307,16 @@ components:
           minItems: 1
           items:
             type: object
-            required: [key, value]
+            required: [task, value]
             properties:
-              key: { type: string }
+              task: { type: string }
               value: { type: string }
               ifVersion:
                 type: integer
                 format: int64
                 description: Write only if the version equals this (0 = must not exist)
 
-    ModifyKeysBody:
+    ModifyTasksBody:
       type: object
       required: [ops]
       properties:
@@ -326,10 +325,10 @@ components:
           minItems: 1
           items:
             type: object
-            required: [key]
+            required: [task]
             description: Exactly one of `append` or `increment`
             properties:
-              key: { type: string }
+              task: { type: string }
               append: { type: string }
               increment: { type: integer, format: int64 }
               ifVersion:
