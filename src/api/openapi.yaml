@@ -108,7 +108,7 @@ paths:
     patch:
       tags: [tasks]
       operationId: modifyTasks
-      summary: Append to or increment several keys atomically (read-modify-write)
+      summary: 'Append to or increment several keys atomically (read-modify-write)'
       description: All or nothing. 412 if any `ifVersion` differs.
       requestBody:
         required: true
@@ -294,9 +294,10 @@ components:
 
     ModifyBody:
       type: object
-      description: Exactly one of `append`
+      description: Exactly one of `append` or `increment`
       properties:
         append: { type: string }
+        increment: { type: integer, format: int64 }
 
     SetTasksBody:
       type: object
