@@ -129,7 +129,7 @@ paths:
     patch:
       tags: [tasks]
       operationId: modifyTasks
-      summary: 'Append to or increment several keys atomically (read-modify-write)'
+      summary: 'Append to or increment several tasks atomically (read-modify-write)'
       description: All or nothing. 412 if any `ifVersion` differs.
       requestBody:
         required: true
@@ -149,7 +149,7 @@ paths:
       operationId: deleteTasks
       summary: Delete several tasks atomically
       parameters:
-        - name: key
+        - name: task
           in: query
           required: true
           description: Repeat for several tasks (?task=a&task=b)
@@ -167,7 +167,7 @@ paths:
               schema: { $ref: '#/components/schemas/DeleteResult' }
         '400': { $ref: '#/components/responses/Problem' }
 
-  /v1/keys/{task}:
+  /v1/tasks/{task}:
     parameters:
       - $ref: '#/components/parameters/Task'
     get:
@@ -213,9 +213,7 @@ paths:
       tags: [task]
       operationId: modifyTask
       summary: Append to or increment one task (read-modify-write)
-      description: |
-        Give exactly one of `append` (missing task = "") or `increment`
-        (missing task = 0; the value must be an integer).
+      description: Exactly one of `append`, `modify` or `increment`
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -261,7 +259,7 @@ components:
       description: Sort field; prefix `-` for descending. Ties break by task.
       schema:
         type: string
-        enum: [task, -task, value, -value, version, -version]
+        enum: [task, -task, version, -version, priority, -priority]
         default: task
     IfMatch:
       name: If-Match
@@ -290,15 +288,60 @@ components:
 
     Entry:
       type: object
-      required: [task, value, version]
+      required: [task, entryBody]
       properties:
-        key: { type: string }
-        value: { type: string }
+        task: { type: string }
+        entryBody: { $ref: '#/components/schemas/EntryBody' }
+
+    EntryBody:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        participants:
+          type: array
+          items: { type: string }
+        priority:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5
+          description: Indicates a priority level for the task in the range [1,5], with 1 as highest
+        completed:
+          type: boolean
+          default: false
+          description: Indicates if the task is completed (true) or not (false)
         version:
           type: integer
           format: int64
           description: Incremented on every write of this task
-
+      description: Schema of the task body
+      
+    EntryMutables:
+      type: object
+      description: Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
+      properties:
+        entry: { $ref: '#/components/schemas/EntryBody' }
+        mutables:
+          type: array
+          items:
+            type: string
+            enum: [name, description, participants, priority, completed, version]
+          description: Only one from each type of enum that indicates which fields is going to be changed
+        appendParticipants:
+          type: boolean
+          default: false
+          description: Appending participants requires a string array of `participants`
+        participants:
+          type: array
+          items:
+            type: string
+          description: Supply a list of participants for appending it to the task
+        incrementVersion:
+          type: boolean
+          default: false
+          description: Indicate if the version needs to be incremented
+    
     EntryList:
       type: object
       required: [entries]
@@ -306,19 +349,17 @@ components:
         entries:
           type: array
           items: { $ref: '#/components/schemas/Entry' }
-
+          
     SetBody:
       type: object
-      required: [value]
+      required: [entryBody]
       properties:
-        value: { type: string }
+        entry: { $ref: '#/components/schemas/EntryBody' }
 
     ModifyBody:
-      type: object
-      description: Exactly one of `append` or `increment`
+      required: [body]
       properties:
-        append: { type: string }
-        increment: { type: integer, format: int64 }
+        body: { $ref: '#/components/schemas/EntryMutables' }
 
     SetTasksBody:
       type: object
@@ -329,10 +370,10 @@ components:
           minItems: 1
           items:
             type: object
-            required: [task, value]
+            required: [task, entryBody]
             properties:
               task: { type: string }
-              value: { type: string }
+              entry: { $ref: '#/components/schemas/EntryBody' }
               ifVersion:
                 type: integer
                 format: int64
@@ -347,12 +388,11 @@ components:
           minItems: 1
           items:
             type: object
-            required: [task]
-            description: Exactly one of `append` or `increment`
+            required: [task, entryMutables]
+            description: Exactly one of `append`, `modify` or `increment`
             properties:
               task: { type: string }
-              append: { type: string }
-              increment: { type: integer, format: int64 }
+              entryMutables: { $ref: '#/components/schemas/EntryMutables' }
               ifVersion:
                 type: integer
                 format: int64
