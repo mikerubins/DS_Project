@@ -34,28 +34,58 @@ func (e Consistency) Valid() bool {
 	}
 }
 
+// Defines values for EntryMutablesMutables.
+const (
+	EntryMutablesMutablesCompleted    EntryMutablesMutables = "completed"
+	EntryMutablesMutablesDescription  EntryMutablesMutables = "description"
+	EntryMutablesMutablesName         EntryMutablesMutables = "name"
+	EntryMutablesMutablesParticipants EntryMutablesMutables = "participants"
+	EntryMutablesMutablesPriority     EntryMutablesMutables = "priority"
+	EntryMutablesMutablesVersion      EntryMutablesMutables = "version"
+)
+
+// Valid indicates whether the value is a known member of the EntryMutablesMutables enum.
+func (e EntryMutablesMutables) Valid() bool {
+	switch e {
+	case EntryMutablesMutablesCompleted:
+		return true
+	case EntryMutablesMutablesDescription:
+		return true
+	case EntryMutablesMutablesName:
+		return true
+	case EntryMutablesMutablesParticipants:
+		return true
+	case EntryMutablesMutablesPriority:
+		return true
+	case EntryMutablesMutablesVersion:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Sort.
 const (
-	SortKey          Sort = "key"
-	SortMinusKey     Sort = "-key"
-	SortMinusValue   Sort = "-value"
-	SortMinusVersion Sort = "-version"
-	SortValue        Sort = "value"
-	SortVersion      Sort = "version"
+	SortMinusPriority Sort = "-priority"
+	SortMinusTask     Sort = "-task"
+	SortMinusVersion  Sort = "-version"
+	SortPriority      Sort = "priority"
+	SortTask          Sort = "task"
+	SortVersion       Sort = "version"
 )
 
 // Valid indicates whether the value is a known member of the Sort enum.
 func (e Sort) Valid() bool {
 	switch e {
-	case SortKey:
+	case SortMinusPriority:
 		return true
-	case SortMinusKey:
-		return true
-	case SortMinusValue:
+	case SortMinusTask:
 		return true
 	case SortMinusVersion:
 		return true
-	case SortValue:
+	case SortPriority:
+		return true
+	case SortTask:
 		return true
 	case SortVersion:
 		return true
@@ -64,30 +94,30 @@ func (e Sort) Valid() bool {
 	}
 }
 
-// Defines values for GetKeysParamsSort.
+// Defines values for GetTasksParamsSort.
 const (
-	GetKeysParamsSortKey          GetKeysParamsSort = "key"
-	GetKeysParamsSortMinusKey     GetKeysParamsSort = "-key"
-	GetKeysParamsSortMinusValue   GetKeysParamsSort = "-value"
-	GetKeysParamsSortMinusVersion GetKeysParamsSort = "-version"
-	GetKeysParamsSortValue        GetKeysParamsSort = "value"
-	GetKeysParamsSortVersion      GetKeysParamsSort = "version"
+	GetTasksParamsSortMinusPriority GetTasksParamsSort = "-priority"
+	GetTasksParamsSortMinusTask     GetTasksParamsSort = "-task"
+	GetTasksParamsSortMinusVersion  GetTasksParamsSort = "-version"
+	GetTasksParamsSortPriority      GetTasksParamsSort = "priority"
+	GetTasksParamsSortTask          GetTasksParamsSort = "task"
+	GetTasksParamsSortVersion       GetTasksParamsSort = "version"
 )
 
-// Valid indicates whether the value is a known member of the GetKeysParamsSort enum.
-func (e GetKeysParamsSort) Valid() bool {
+// Valid indicates whether the value is a known member of the GetTasksParamsSort enum.
+func (e GetTasksParamsSort) Valid() bool {
 	switch e {
-	case GetKeysParamsSortKey:
+	case GetTasksParamsSortMinusPriority:
 		return true
-	case GetKeysParamsSortMinusKey:
+	case GetTasksParamsSortMinusTask:
 		return true
-	case GetKeysParamsSortMinusValue:
+	case GetTasksParamsSortMinusVersion:
 		return true
-	case GetKeysParamsSortMinusVersion:
+	case GetTasksParamsSortPriority:
 		return true
-	case GetKeysParamsSortValue:
+	case GetTasksParamsSortTask:
 		return true
-	case GetKeysParamsSortVersion:
+	case GetTasksParamsSortVersion:
 		return true
 	default:
 		return false
@@ -104,11 +134,24 @@ type DeleteResult struct {
 
 // Entry defines model for Entry.
 type Entry struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	// EntryBody Schema of the task body
+	EntryBody EntryBody `json:"entryBody"`
+	Task      string    `json:"task"`
+}
 
-	// Version Incremented on every write of this key
-	Version int64 `json:"version"`
+// EntryBody Schema of the task body
+type EntryBody struct {
+	// Completed Indicates if the task is completed (true) or not (false)
+	Completed    *bool     `json:"completed,omitempty"`
+	Description  *string   `json:"description,omitempty"`
+	Name         *string   `json:"name,omitempty"`
+	Participants *[]string `json:"participants,omitempty"`
+
+	// Priority Indicates a priority level for the task in the range [1,5], with 1 as highest
+	Priority *int32 `json:"priority,omitempty"`
+
+	// Version Incremented on every write of this task
+	Version *int64 `json:"version,omitempty"`
 }
 
 // EntryList defines model for EntryList.
@@ -116,19 +159,40 @@ type EntryList struct {
 	Entries []Entry `json:"entries"`
 }
 
-// ModifyBody Exactly one of `append` or `increment`
-type ModifyBody struct {
-	Append    *string `json:"append,omitempty"`
-	Increment *int64  `json:"increment,omitempty"`
+// EntryMutables Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
+type EntryMutables struct {
+	// AppendParticipants Appending participants requires a string array of `participants`
+	AppendParticipants *bool `json:"appendParticipants,omitempty"`
+
+	// Entry Schema of the task body
+	Entry *EntryBody `json:"entry,omitempty"`
+
+	// IncrementVersion Indicate if the version needs to be incremented
+	IncrementVersion *bool `json:"incrementVersion,omitempty"`
+
+	// Mutables Only one from each type of enum that indicates which fields is going to be changed
+	Mutables *[]EntryMutablesMutables `json:"mutables,omitempty"`
+
+	// Participants Supply a list of participants for appending it to the task
+	Participants *[]string `json:"participants,omitempty"`
 }
 
-// ModifyKeysBody defines model for ModifyKeysBody.
-type ModifyKeysBody struct {
+// EntryMutablesMutables defines model for EntryMutables.Mutables.
+type EntryMutablesMutables string
+
+// ModifyBody defines model for ModifyBody.
+type ModifyBody struct {
+	// Body Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
+	Body EntryMutables `json:"body"`
+}
+
+// ModifyTasksBody defines model for ModifyTasksBody.
+type ModifyTasksBody struct {
 	Ops []struct {
-		Append    *string `json:"append,omitempty"`
-		IfVersion *int64  `json:"ifVersion,omitempty"`
-		Increment *int64  `json:"increment,omitempty"`
-		Key       string  `json:"key"`
+		// EntryMutables Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
+		EntryMutables EntryMutables `json:"entryMutables"`
+		IfVersion     *int64        `json:"ifVersion,omitempty"`
+		Task          string        `json:"task"`
 	} `json:"ops"`
 }
 
@@ -140,124 +204,136 @@ type Problem struct {
 	// Status The HTTP status code
 	Status int `json:"status"`
 
-	// Title Short summary
+	// Title Short summary, e.g. "Not Found"
 	Title string  `json:"title"`
 	Type  *string `json:"type,omitempty"`
 }
 
 // SetBody defines model for SetBody.
 type SetBody struct {
-	Value string `json:"value"`
+	// Entry Schema of the task body
+	Entry *EntryBody `json:"entry,omitempty"`
 }
 
-// SetKeysBody defines model for SetKeysBody.
-type SetKeysBody struct {
+// SetTasksBody defines model for SetTasksBody.
+type SetTasksBody struct {
 	Entries []struct {
+		// Entry Schema of the task body
+		Entry *EntryBody `json:"entry,omitempty"`
+
 		// IfVersion Write only if the version equals this (0 = must not exist)
 		IfVersion *int64 `json:"ifVersion,omitempty"`
-		Key       string `json:"key"`
-		Value     string `json:"value"`
+		Task      string `json:"task"`
 	} `json:"entries"`
 }
 
 // IfMatch defines model for IfMatch.
 type IfMatch = string
 
-// Key defines model for Key.
-type Key = string
-
 // Sort defines model for Sort.
 type Sort string
 
-// DeleteKeysParams defines parameters for DeleteKeys.
-type DeleteKeysParams struct {
-	// Key Repeat for several keys (?key=a&key=b)
-	Key []string `form:"key" json:"key"`
+// Task defines model for Task.
+type Task = string
+
+// DeleteTasksParams defines parameters for DeleteTasks.
+type DeleteTasksParams struct {
+	// Task Repeat for several tasks (?task=a&task=b)
+	Task []string `form:"task" json:"task"`
 }
 
-// GetKeysParams defines parameters for GetKeys.
-type GetKeysParams struct {
-	// Key Repeat for several keys (?key=a&key=b)
-	Key    *[]string `form:"key,omitempty" json:"key,omitempty"`
-	Prefix *string   `form:"prefix,omitempty" json:"prefix,omitempty"`
-	From   *string   `form:"from,omitempty" json:"from,omitempty"`
-	To     *string   `form:"to,omitempty" json:"to,omitempty"`
+// GetTasksParams defines parameters for GetTasks.
+type GetTasksParams struct {
+	// Task Repeat for several tasks (?task=a&task=b)
+	Task *[]string `form:"task,omitempty" json:"task,omitempty"`
 
-	// Sort Sort field; prefix `-` for descending. Ties break by key.
-	Sort *GetKeysParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+	// Participant Repeat for several participants (?participant=a&participant=b)
+	Participant *[]string `form:"participant,omitempty" json:"participant,omitempty"`
+
+	// Priority Reapeat for several priorities in the range [1,5] (?priority=a&priority=b)
+	Priority *[]int32 `form:"priority,omitempty" json:"priority,omitempty"`
+	Prefix   *string  `form:"prefix,omitempty" json:"prefix,omitempty"`
+	From     *string  `form:"from,omitempty" json:"from,omitempty"`
+	To       *string  `form:"to,omitempty" json:"to,omitempty"`
+
+	// Sort Sort field; prefix `-` for descending. Ties break by task.
+	Sort *GetTasksParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Completed Choose between completed tasks (true) and open tasks (false)
+	Completed *bool `form:"completed,omitempty" json:"completed,omitempty"`
 
 	// Limit Maximum number of entries (0 or absent = no limit)
 	Limit *int32 `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// KeysOnly Return only the keys (values empty)
-	KeysOnly    *bool        `form:"keysOnly,omitempty" json:"keysOnly,omitempty"`
+	// TasksOnly Return only the tasks (values empty)
+	TasksOnly   *bool        `form:"tasksOnly,omitempty" json:"tasksOnly,omitempty"`
 	Consistency *Consistency `form:"consistency,omitempty" json:"consistency,omitempty"`
 }
 
-// GetKeysParamsSort defines parameters for GetKeys.
-type GetKeysParamsSort string
+// GetTasksParamsSort defines parameters for GetTasks.
+type GetTasksParamsSort string
 
-// DeleteKeyParams defines parameters for DeleteKey.
-type DeleteKeyParams struct {
+// DeleteTaskParams defines parameters for DeleteTask.
+type DeleteTaskParams struct {
 	// IfMatch Write only if the entry's ETag (version) equals this
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// GetKeyParams defines parameters for GetKey.
-type GetKeyParams struct {
+// GetTaskParams defines parameters for GetTask.
+type GetTaskParams struct {
 	Consistency *Consistency `form:"consistency,omitempty" json:"consistency,omitempty"`
 }
 
-// ModifyKeyParams defines parameters for ModifyKey.
-type ModifyKeyParams struct {
+// ModifyTaskParams defines parameters for ModifyTask.
+type ModifyTaskParams struct {
 	// IfMatch Write only if the entry's ETag (version) equals this
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// SetKeyParams defines parameters for SetKey.
-type SetKeyParams struct {
+// SetTaskParams defines parameters for SetTask.
+type SetTaskParams struct {
 	// IfMatch Write only if the entry's ETag (version) equals this
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
-// ModifyKeysJSONRequestBody defines body for ModifyKeys for application/json ContentType.
-type ModifyKeysJSONRequestBody = ModifyKeysBody
+// ModifyTasksJSONRequestBody defines body for ModifyTasks for application/json ContentType.
+type ModifyTasksJSONRequestBody = ModifyTasksBody
 
-// SetKeysJSONRequestBody defines body for SetKeys for application/json ContentType.
-type SetKeysJSONRequestBody = SetKeysBody
+// SetTasksJSONRequestBody defines body for SetTasks for application/json ContentType.
+type SetTasksJSONRequestBody = SetTasksBody
 
-// ModifyKeyJSONRequestBody defines body for ModifyKey for application/json ContentType.
-type ModifyKeyJSONRequestBody = ModifyBody
+// ModifyTaskJSONRequestBody defines body for ModifyTask for application/json ContentType.
+type ModifyTaskJSONRequestBody = ModifyBody
 
-// SetKeyJSONRequestBody defines body for SetKey for application/json ContentType.
-type SetKeyJSONRequestBody = SetBody
+// SetTaskJSONRequestBody defines body for SetTask for application/json ContentType.
+type SetTaskJSONRequestBody = SetBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// DeleteKeys Delete several keys atomically
-	// (DELETE /v1/keys)
-	DeleteKeys(w http.ResponseWriter, r *http.Request, params DeleteKeysParams)
-	// GetKeys Read several keys, sorted
-	// (GET /v1/keys)
-	GetKeys(w http.ResponseWriter, r *http.Request, params GetKeysParams)
-	// ModifyKeys Append to or increment several keys atomically (read-modify-write)
-	// (PATCH /v1/keys)
-	ModifyKeys(w http.ResponseWriter, r *http.Request)
-	// SetKeys Set several keys atomically
-	// (POST /v1/keys)
-	SetKeys(w http.ResponseWriter, r *http.Request)
-	// DeleteKey Delete one key
-	// (DELETE /v1/keys/{key})
-	DeleteKey(w http.ResponseWriter, r *http.Request, key Key, params DeleteKeyParams)
-	// GetKey Read one key
-	// (GET /v1/keys/{key})
-	GetKey(w http.ResponseWriter, r *http.Request, key Key, params GetKeyParams)
-	// ModifyKey Append to or increment one key (read-modify-write)
-	// (PATCH /v1/keys/{key})
-	ModifyKey(w http.ResponseWriter, r *http.Request, key Key, params ModifyKeyParams)
-	// SetKey Set one key (create or replace)
-	// (POST /v1/keys/{key})
-	SetKey(w http.ResponseWriter, r *http.Request, key Key, params SetKeyParams)
+	// DeleteTasks Delete several tasks atomically
+	// (DELETE /v1/tasks)
+	DeleteTasks(w http.ResponseWriter, r *http.Request, params DeleteTasksParams)
+	// GetTasks Read several tasks, sorted by task ID
+	// (GET /v1/tasks)
+	GetTasks(w http.ResponseWriter, r *http.Request, params GetTasksParams)
+	// ModifyTasks Append to or increment several tasks atomically (read-modify-write)
+	// (PATCH /v1/tasks)
+	ModifyTasks(w http.ResponseWriter, r *http.Request)
+	// SetTasks Set several tasks atomically
+	// (POST /v1/tasks)
+	SetTasks(w http.ResponseWriter, r *http.Request)
+	// DeleteTask Delete one task
+	// (DELETE /v1/tasks/{task})
+	DeleteTask(w http.ResponseWriter, r *http.Request, task Task, params DeleteTaskParams)
+	// GetTask Read one task
+	// (GET /v1/tasks/{task})
+	GetTask(w http.ResponseWriter, r *http.Request, task Task, params GetTaskParams)
+	// ModifyTask Append to or increment one task (read-modify-write)
+	// (PATCH /v1/tasks/{task})
+	ModifyTask(w http.ResponseWriter, r *http.Request, task Task, params ModifyTaskParams)
+	// SetTask Set one task (create or replace)
+	// (POST /v1/tasks/{task})
+	SetTask(w http.ResponseWriter, r *http.Request, task Task, params SetTaskParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -269,30 +345,30 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// DeleteKeys operation middleware
-func (siw *ServerInterfaceWrapper) DeleteKeys(w http.ResponseWriter, r *http.Request) {
+// DeleteTasks operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTasks(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params DeleteKeysParams
+	var params DeleteTasksParams
 
-	// ------------- Required query parameter "key" -------------
+	// ------------- Required query parameter "task" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "key", r.URL.Query(), &params.Key, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "task", r.URL.Query(), &params.Task, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "key"})
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "task"})
 		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "task", Err: err})
 		}
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteKeys(w, r, params)
+		siw.Handler.DeleteTasks(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -302,24 +378,50 @@ func (siw *ServerInterfaceWrapper) DeleteKeys(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// GetKeys operation middleware
-func (siw *ServerInterfaceWrapper) GetKeys(w http.ResponseWriter, r *http.Request) {
+// GetTasks operation middleware
+func (siw *ServerInterfaceWrapper) GetTasks(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetKeysParams
+	var params GetTasksParams
 
-	// ------------- Optional query parameter "key" -------------
+	// ------------- Optional query parameter "task" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "key", r.URL.Query(), &params.Key, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "task", r.URL.Query(), &params.Task, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "key"})
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "task"})
 		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "task", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "participant" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "participant", r.URL.Query(), &params.Participant, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "participant"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "participant", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "priority" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "priority", r.URL.Query(), &params.Priority, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "priority"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "priority", Err: err})
 		}
 		return
 	}
@@ -376,6 +478,19 @@ func (siw *ServerInterfaceWrapper) GetKeys(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// ------------- Optional query parameter "completed" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "completed", r.URL.Query(), &params.Completed, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "completed"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "completed", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "limit" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: "int32"})
@@ -389,15 +504,15 @@ func (siw *ServerInterfaceWrapper) GetKeys(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// ------------- Optional query parameter "keysOnly" -------------
+	// ------------- Optional query parameter "tasksOnly" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "keysOnly", r.URL.Query(), &params.KeysOnly, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "tasksOnly", r.URL.Query(), &params.TasksOnly, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "keysOnly"})
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "tasksOnly"})
 		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "keysOnly", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tasksOnly", Err: err})
 		}
 		return
 	}
@@ -416,7 +531,7 @@ func (siw *ServerInterfaceWrapper) GetKeys(w http.ResponseWriter, r *http.Reques
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetKeys(w, r, params)
+		siw.Handler.GetTasks(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -426,11 +541,11 @@ func (siw *ServerInterfaceWrapper) GetKeys(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
-// ModifyKeys operation middleware
-func (siw *ServerInterfaceWrapper) ModifyKeys(w http.ResponseWriter, r *http.Request) {
+// ModifyTasks operation middleware
+func (siw *ServerInterfaceWrapper) ModifyTasks(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ModifyKeys(w, r)
+		siw.Handler.ModifyTasks(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -440,11 +555,11 @@ func (siw *ServerInterfaceWrapper) ModifyKeys(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// SetKeys operation middleware
-func (siw *ServerInterfaceWrapper) SetKeys(w http.ResponseWriter, r *http.Request) {
+// SetTasks operation middleware
+func (siw *ServerInterfaceWrapper) SetTasks(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SetKeys(w, r)
+		siw.Handler.SetTasks(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -454,23 +569,23 @@ func (siw *ServerInterfaceWrapper) SetKeys(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
-// DeleteKey operation middleware
-func (siw *ServerInterfaceWrapper) DeleteKey(w http.ResponseWriter, r *http.Request) {
+// DeleteTask operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTask(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "key" -------------
-	var key Key
+	// ------------- Path parameter "task" -------------
+	var task Task
 
-	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "task", r.PathValue("task"), &task, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "task", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params DeleteKeyParams
+	var params DeleteTaskParams
 
 	headers := r.Header
 
@@ -494,7 +609,7 @@ func (siw *ServerInterfaceWrapper) DeleteKey(w http.ResponseWriter, r *http.Requ
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteKey(w, r, key, params)
+		siw.Handler.DeleteTask(w, r, task, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -504,23 +619,23 @@ func (siw *ServerInterfaceWrapper) DeleteKey(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// GetKey operation middleware
-func (siw *ServerInterfaceWrapper) GetKey(w http.ResponseWriter, r *http.Request) {
+// GetTask operation middleware
+func (siw *ServerInterfaceWrapper) GetTask(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "key" -------------
-	var key Key
+	// ------------- Path parameter "task" -------------
+	var task Task
 
-	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "task", r.PathValue("task"), &task, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "task", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetKeyParams
+	var params GetTaskParams
 
 	// ------------- Optional query parameter "consistency" -------------
 
@@ -536,7 +651,7 @@ func (siw *ServerInterfaceWrapper) GetKey(w http.ResponseWriter, r *http.Request
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetKey(w, r, key, params)
+		siw.Handler.GetTask(w, r, task, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -546,23 +661,23 @@ func (siw *ServerInterfaceWrapper) GetKey(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
-// ModifyKey operation middleware
-func (siw *ServerInterfaceWrapper) ModifyKey(w http.ResponseWriter, r *http.Request) {
+// ModifyTask operation middleware
+func (siw *ServerInterfaceWrapper) ModifyTask(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "key" -------------
-	var key Key
+	// ------------- Path parameter "task" -------------
+	var task Task
 
-	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "task", r.PathValue("task"), &task, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "task", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params ModifyKeyParams
+	var params ModifyTaskParams
 
 	headers := r.Header
 
@@ -586,7 +701,7 @@ func (siw *ServerInterfaceWrapper) ModifyKey(w http.ResponseWriter, r *http.Requ
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ModifyKey(w, r, key, params)
+		siw.Handler.ModifyTask(w, r, task, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -596,23 +711,23 @@ func (siw *ServerInterfaceWrapper) ModifyKey(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// SetKey operation middleware
-func (siw *ServerInterfaceWrapper) SetKey(w http.ResponseWriter, r *http.Request) {
+// SetTask operation middleware
+func (siw *ServerInterfaceWrapper) SetTask(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "key" -------------
-	var key Key
+	// ------------- Path parameter "task" -------------
+	var task Task
 
-	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "task", r.PathValue("task"), &task, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "task", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params SetKeyParams
+	var params SetTaskParams
 
 	headers := r.Header
 
@@ -636,7 +751,7 @@ func (siw *ServerInterfaceWrapper) SetKey(w http.ResponseWriter, r *http.Request
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SetKey(w, r, key, params)
+		siw.Handler.SetTask(w, r, task, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -766,31 +881,31 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/keys", wrapper.DeleteKeys)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/keys", wrapper.GetKeys)
-	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/v1/keys", wrapper.ModifyKeys)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/keys", wrapper.SetKeys)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/keys/{key}", wrapper.DeleteKey)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/keys/{key}", wrapper.GetKey)
-	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/v1/keys/{key}", wrapper.ModifyKey)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/keys/{key}", wrapper.SetKey)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/tasks", wrapper.DeleteTasks)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/tasks", wrapper.GetTasks)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/v1/tasks", wrapper.ModifyTasks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/tasks", wrapper.SetTasks)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/v1/tasks/{task}", wrapper.DeleteTask)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/v1/tasks/{task}", wrapper.GetTask)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/v1/tasks/{task}", wrapper.ModifyTask)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/v1/tasks/{task}", wrapper.SetTask)
 
 	return m
 }
 
 type ProblemApplicationProblemPlusJSONResponse Problem
 
-type DeleteKeysRequestObject struct {
-	Params DeleteKeysParams
+type DeleteTasksRequestObject struct {
+	Params DeleteTasksParams
 }
 
-type DeleteKeysResponseObject interface {
-	VisitDeleteKeysResponse(w http.ResponseWriter) error
+type DeleteTasksResponseObject interface {
+	VisitDeleteTasksResponse(w http.ResponseWriter) error
 }
 
-type DeleteKeys200JSONResponse DeleteResult
+type DeleteTasks200JSONResponse DeleteResult
 
-func (response DeleteKeys200JSONResponse) VisitDeleteKeysResponse(w http.ResponseWriter) error {
+func (response DeleteTasks200JSONResponse) VisitDeleteTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -802,11 +917,11 @@ func (response DeleteKeys200JSONResponse) VisitDeleteKeysResponse(w http.Respons
 	return err
 }
 
-type DeleteKeys400ApplicationProblemPlusJSONResponse struct {
+type DeleteTasks400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response DeleteKeys400ApplicationProblemPlusJSONResponse) VisitDeleteKeysResponse(w http.ResponseWriter) error {
+func (response DeleteTasks400ApplicationProblemPlusJSONResponse) VisitDeleteTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -818,17 +933,17 @@ func (response DeleteKeys400ApplicationProblemPlusJSONResponse) VisitDeleteKeysR
 	return err
 }
 
-type GetKeysRequestObject struct {
-	Params GetKeysParams
+type GetTasksRequestObject struct {
+	Params GetTasksParams
 }
 
-type GetKeysResponseObject interface {
-	VisitGetKeysResponse(w http.ResponseWriter) error
+type GetTasksResponseObject interface {
+	VisitGetTasksResponse(w http.ResponseWriter) error
 }
 
-type GetKeys200JSONResponse EntryList
+type GetTasks200JSONResponse EntryList
 
-func (response GetKeys200JSONResponse) VisitGetKeysResponse(w http.ResponseWriter) error {
+func (response GetTasks200JSONResponse) VisitGetTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -840,11 +955,11 @@ func (response GetKeys200JSONResponse) VisitGetKeysResponse(w http.ResponseWrite
 	return err
 }
 
-type GetKeys400ApplicationProblemPlusJSONResponse struct {
+type GetTasks400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response GetKeys400ApplicationProblemPlusJSONResponse) VisitGetKeysResponse(w http.ResponseWriter) error {
+func (response GetTasks400ApplicationProblemPlusJSONResponse) VisitGetTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -856,17 +971,17 @@ func (response GetKeys400ApplicationProblemPlusJSONResponse) VisitGetKeysRespons
 	return err
 }
 
-type ModifyKeysRequestObject struct {
-	Body *ModifyKeysJSONRequestBody
+type ModifyTasksRequestObject struct {
+	Body *ModifyTasksJSONRequestBody
 }
 
-type ModifyKeysResponseObject interface {
-	VisitModifyKeysResponse(w http.ResponseWriter) error
+type ModifyTasksResponseObject interface {
+	VisitModifyTasksResponse(w http.ResponseWriter) error
 }
 
-type ModifyKeys200JSONResponse EntryList
+type ModifyTasks200JSONResponse EntryList
 
-func (response ModifyKeys200JSONResponse) VisitModifyKeysResponse(w http.ResponseWriter) error {
+func (response ModifyTasks200JSONResponse) VisitModifyTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -878,11 +993,11 @@ func (response ModifyKeys200JSONResponse) VisitModifyKeysResponse(w http.Respons
 	return err
 }
 
-type ModifyKeys400ApplicationProblemPlusJSONResponse struct {
+type ModifyTasks400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response ModifyKeys400ApplicationProblemPlusJSONResponse) VisitModifyKeysResponse(w http.ResponseWriter) error {
+func (response ModifyTasks400ApplicationProblemPlusJSONResponse) VisitModifyTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -894,9 +1009,9 @@ func (response ModifyKeys400ApplicationProblemPlusJSONResponse) VisitModifyKeysR
 	return err
 }
 
-type ModifyKeys412ApplicationProblemPlusJSONResponse Problem
+type ModifyTasks412ApplicationProblemPlusJSONResponse Problem
 
-func (response ModifyKeys412ApplicationProblemPlusJSONResponse) VisitModifyKeysResponse(w http.ResponseWriter) error {
+func (response ModifyTasks412ApplicationProblemPlusJSONResponse) VisitModifyTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -908,17 +1023,17 @@ func (response ModifyKeys412ApplicationProblemPlusJSONResponse) VisitModifyKeysR
 	return err
 }
 
-type SetKeysRequestObject struct {
-	Body *SetKeysJSONRequestBody
+type SetTasksRequestObject struct {
+	Body *SetTasksJSONRequestBody
 }
 
-type SetKeysResponseObject interface {
-	VisitSetKeysResponse(w http.ResponseWriter) error
+type SetTasksResponseObject interface {
+	VisitSetTasksResponse(w http.ResponseWriter) error
 }
 
-type SetKeys200JSONResponse EntryList
+type SetTasks200JSONResponse EntryList
 
-func (response SetKeys200JSONResponse) VisitSetKeysResponse(w http.ResponseWriter) error {
+func (response SetTasks200JSONResponse) VisitSetTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -930,11 +1045,11 @@ func (response SetKeys200JSONResponse) VisitSetKeysResponse(w http.ResponseWrite
 	return err
 }
 
-type SetKeys400ApplicationProblemPlusJSONResponse struct {
+type SetTasks400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response SetKeys400ApplicationProblemPlusJSONResponse) VisitSetKeysResponse(w http.ResponseWriter) error {
+func (response SetTasks400ApplicationProblemPlusJSONResponse) VisitSetTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -946,9 +1061,9 @@ func (response SetKeys400ApplicationProblemPlusJSONResponse) VisitSetKeysRespons
 	return err
 }
 
-type SetKeys412ApplicationProblemPlusJSONResponse Problem
+type SetTasks412ApplicationProblemPlusJSONResponse Problem
 
-func (response SetKeys412ApplicationProblemPlusJSONResponse) VisitSetKeysResponse(w http.ResponseWriter) error {
+func (response SetTasks412ApplicationProblemPlusJSONResponse) VisitSetTasksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -960,28 +1075,28 @@ func (response SetKeys412ApplicationProblemPlusJSONResponse) VisitSetKeysRespons
 	return err
 }
 
-type DeleteKeyRequestObject struct {
-	Key    Key `json:"key"`
-	Params DeleteKeyParams
+type DeleteTaskRequestObject struct {
+	Task   Task `json:"task"`
+	Params DeleteTaskParams
 }
 
-type DeleteKeyResponseObject interface {
-	VisitDeleteKeyResponse(w http.ResponseWriter) error
+type DeleteTaskResponseObject interface {
+	VisitDeleteTaskResponse(w http.ResponseWriter) error
 }
 
-type DeleteKey204Response struct {
+type DeleteTask204Response struct {
 }
 
-func (response DeleteKey204Response) VisitDeleteKeyResponse(w http.ResponseWriter) error {
+func (response DeleteTask204Response) VisitDeleteTaskResponse(w http.ResponseWriter) error {
 	w.WriteHeader(204)
 	return nil
 }
 
-type DeleteKey412ApplicationProblemPlusJSONResponse struct {
+type DeleteTask412ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response DeleteKey412ApplicationProblemPlusJSONResponse) VisitDeleteKeyResponse(w http.ResponseWriter) error {
+func (response DeleteTask412ApplicationProblemPlusJSONResponse) VisitDeleteTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -993,25 +1108,25 @@ func (response DeleteKey412ApplicationProblemPlusJSONResponse) VisitDeleteKeyRes
 	return err
 }
 
-type GetKeyRequestObject struct {
-	Key    Key `json:"key"`
-	Params GetKeyParams
+type GetTaskRequestObject struct {
+	Task   Task `json:"task"`
+	Params GetTaskParams
 }
 
-type GetKeyResponseObject interface {
-	VisitGetKeyResponse(w http.ResponseWriter) error
+type GetTaskResponseObject interface {
+	VisitGetTaskResponse(w http.ResponseWriter) error
 }
 
-type GetKey200ResponseHeaders struct {
+type GetTask200ResponseHeaders struct {
 	ETag *string
 }
 
-type GetKey200JSONResponse struct {
+type GetTask200JSONResponse struct {
 	Body    Entry
-	Headers GetKey200ResponseHeaders
+	Headers GetTask200ResponseHeaders
 }
 
-func (response GetKey200JSONResponse) VisitGetKeyResponse(w http.ResponseWriter) error {
+func (response GetTask200JSONResponse) VisitGetTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -1026,11 +1141,11 @@ func (response GetKey200JSONResponse) VisitGetKeyResponse(w http.ResponseWriter)
 	return err
 }
 
-type GetKey404ApplicationProblemPlusJSONResponse struct {
+type GetTask404ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response GetKey404ApplicationProblemPlusJSONResponse) VisitGetKeyResponse(w http.ResponseWriter) error {
+func (response GetTask404ApplicationProblemPlusJSONResponse) VisitGetTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1042,19 +1157,19 @@ func (response GetKey404ApplicationProblemPlusJSONResponse) VisitGetKeyResponse(
 	return err
 }
 
-type ModifyKeyRequestObject struct {
-	Key    Key `json:"key"`
-	Params ModifyKeyParams
-	Body   *ModifyKeyJSONRequestBody
+type ModifyTaskRequestObject struct {
+	Task   Task `json:"task"`
+	Params ModifyTaskParams
+	Body   *ModifyTaskJSONRequestBody
 }
 
-type ModifyKeyResponseObject interface {
-	VisitModifyKeyResponse(w http.ResponseWriter) error
+type ModifyTaskResponseObject interface {
+	VisitModifyTaskResponse(w http.ResponseWriter) error
 }
 
-type ModifyKey200JSONResponse Entry
+type ModifyTask200JSONResponse Entry
 
-func (response ModifyKey200JSONResponse) VisitModifyKeyResponse(w http.ResponseWriter) error {
+func (response ModifyTask200JSONResponse) VisitModifyTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1066,11 +1181,11 @@ func (response ModifyKey200JSONResponse) VisitModifyKeyResponse(w http.ResponseW
 	return err
 }
 
-type ModifyKey400ApplicationProblemPlusJSONResponse struct {
+type ModifyTask400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response ModifyKey400ApplicationProblemPlusJSONResponse) VisitModifyKeyResponse(w http.ResponseWriter) error {
+func (response ModifyTask400ApplicationProblemPlusJSONResponse) VisitModifyTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1082,9 +1197,9 @@ func (response ModifyKey400ApplicationProblemPlusJSONResponse) VisitModifyKeyRes
 	return err
 }
 
-type ModifyKey412ApplicationProblemPlusJSONResponse Problem
+type ModifyTask412ApplicationProblemPlusJSONResponse Problem
 
-func (response ModifyKey412ApplicationProblemPlusJSONResponse) VisitModifyKeyResponse(w http.ResponseWriter) error {
+func (response ModifyTask412ApplicationProblemPlusJSONResponse) VisitModifyTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1096,19 +1211,19 @@ func (response ModifyKey412ApplicationProblemPlusJSONResponse) VisitModifyKeyRes
 	return err
 }
 
-type SetKeyRequestObject struct {
-	Key    Key `json:"key"`
-	Params SetKeyParams
-	Body   *SetKeyJSONRequestBody
+type SetTaskRequestObject struct {
+	Task   Task `json:"task"`
+	Params SetTaskParams
+	Body   *SetTaskJSONRequestBody
 }
 
-type SetKeyResponseObject interface {
-	VisitSetKeyResponse(w http.ResponseWriter) error
+type SetTaskResponseObject interface {
+	VisitSetTaskResponse(w http.ResponseWriter) error
 }
 
-type SetKey200JSONResponse Entry
+type SetTask200JSONResponse Entry
 
-func (response SetKey200JSONResponse) VisitSetKeyResponse(w http.ResponseWriter) error {
+func (response SetTask200JSONResponse) VisitSetTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1120,9 +1235,9 @@ func (response SetKey200JSONResponse) VisitSetKeyResponse(w http.ResponseWriter)
 	return err
 }
 
-type SetKey201JSONResponse Entry
+type SetTask201JSONResponse Entry
 
-func (response SetKey201JSONResponse) VisitSetKeyResponse(w http.ResponseWriter) error {
+func (response SetTask201JSONResponse) VisitSetTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1134,11 +1249,11 @@ func (response SetKey201JSONResponse) VisitSetKeyResponse(w http.ResponseWriter)
 	return err
 }
 
-type SetKey400ApplicationProblemPlusJSONResponse struct {
+type SetTask400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
 
-func (response SetKey400ApplicationProblemPlusJSONResponse) VisitSetKeyResponse(w http.ResponseWriter) error {
+func (response SetTask400ApplicationProblemPlusJSONResponse) VisitSetTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1150,9 +1265,9 @@ func (response SetKey400ApplicationProblemPlusJSONResponse) VisitSetKeyResponse(
 	return err
 }
 
-type SetKey412ApplicationProblemPlusJSONResponse Problem
+type SetTask412ApplicationProblemPlusJSONResponse Problem
 
-func (response SetKey412ApplicationProblemPlusJSONResponse) VisitSetKeyResponse(w http.ResponseWriter) error {
+func (response SetTask412ApplicationProblemPlusJSONResponse) VisitSetTaskResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -1166,30 +1281,6 @@ func (response SetKey412ApplicationProblemPlusJSONResponse) VisitSetKeyResponse(
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// DeleteKeys Delete several keys atomically
-	// (DELETE /v1/keys)
-	DeleteKeys(ctx context.Context, request DeleteKeysRequestObject) (DeleteKeysResponseObject, error)
-	// GetKeys Read several keys, sorted
-	// (GET /v1/keys)
-	GetKeys(ctx context.Context, request GetKeysRequestObject) (GetKeysResponseObject, error)
-	// ModifyKeys Append to or increment several keys atomically (read-modify-write)
-	// (PATCH /v1/keys)
-	ModifyKeys(ctx context.Context, request ModifyKeysRequestObject) (ModifyKeysResponseObject, error)
-	// SetKeys Set several keys atomically
-	// (POST /v1/keys)
-	SetKeys(ctx context.Context, request SetKeysRequestObject) (SetKeysResponseObject, error)
-	// DeleteKey Delete one key
-	// (DELETE /v1/keys/{key})
-	DeleteKey(ctx context.Context, request DeleteKeyRequestObject) (DeleteKeyResponseObject, error)
-	// GetKey Read one key
-	// (GET /v1/keys/{key})
-	GetKey(ctx context.Context, request GetKeyRequestObject) (GetKeyResponseObject, error)
-	// ModifyKey Append to or increment one key (read-modify-write)
-	// (PATCH /v1/keys/{key})
-	ModifyKey(ctx context.Context, request ModifyKeyRequestObject) (ModifyKeyResponseObject, error)
-	// SetKey Set one key (create or replace)
-	// (POST /v1/keys/{key})
-	SetKey(ctx context.Context, request SetKeyRequestObject) (SetKeyResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -1231,25 +1322,25 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
-// DeleteKeys operation middleware
-func (sh *strictHandler) DeleteKeys(w http.ResponseWriter, r *http.Request, params DeleteKeysParams) {
-	var request DeleteKeysRequestObject
+// DeleteTasks operation middleware
+func (sh *strictHandler) DeleteTasks(w http.ResponseWriter, r *http.Request, params DeleteTasksParams) {
+	var request DeleteTasksRequestObject
 
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteKeys(ctx, request.(DeleteKeysRequestObject))
+		return sh.ssi.DeleteTasks(ctx, request.(DeleteTasksRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteKeys")
+		handler = middleware(handler, "DeleteTasks")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(DeleteKeysResponseObject); ok {
-		if err := validResponse.VisitDeleteKeysResponse(w); err != nil {
+	} else if validResponse, ok := response.(DeleteTasksResponseObject); ok {
+		if err := validResponse.VisitDeleteTasksResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1257,25 +1348,25 @@ func (sh *strictHandler) DeleteKeys(w http.ResponseWriter, r *http.Request, para
 	}
 }
 
-// GetKeys operation middleware
-func (sh *strictHandler) GetKeys(w http.ResponseWriter, r *http.Request, params GetKeysParams) {
-	var request GetKeysRequestObject
+// GetTasks operation middleware
+func (sh *strictHandler) GetTasks(w http.ResponseWriter, r *http.Request, params GetTasksParams) {
+	var request GetTasksRequestObject
 
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetKeys(ctx, request.(GetKeysRequestObject))
+		return sh.ssi.GetTasks(ctx, request.(GetTasksRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetKeys")
+		handler = middleware(handler, "GetTasks")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetKeysResponseObject); ok {
-		if err := validResponse.VisitGetKeysResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetTasksResponseObject); ok {
+		if err := validResponse.VisitGetTasksResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1283,11 +1374,11 @@ func (sh *strictHandler) GetKeys(w http.ResponseWriter, r *http.Request, params 
 	}
 }
 
-// ModifyKeys operation middleware
-func (sh *strictHandler) ModifyKeys(w http.ResponseWriter, r *http.Request) {
-	var request ModifyKeysRequestObject
+// ModifyTasks operation middleware
+func (sh *strictHandler) ModifyTasks(w http.ResponseWriter, r *http.Request) {
+	var request ModifyTasksRequestObject
 
-	var body ModifyKeysJSONRequestBody
+	var body ModifyTasksJSONRequestBody
 	if err := runtime.BindJSONBody(r, &body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -1295,18 +1386,18 @@ func (sh *strictHandler) ModifyKeys(w http.ResponseWriter, r *http.Request) {
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ModifyKeys(ctx, request.(ModifyKeysRequestObject))
+		return sh.ssi.ModifyTasks(ctx, request.(ModifyTasksRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ModifyKeys")
+		handler = middleware(handler, "ModifyTasks")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ModifyKeysResponseObject); ok {
-		if err := validResponse.VisitModifyKeysResponse(w); err != nil {
+	} else if validResponse, ok := response.(ModifyTasksResponseObject); ok {
+		if err := validResponse.VisitModifyTasksResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1314,11 +1405,11 @@ func (sh *strictHandler) ModifyKeys(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// SetKeys operation middleware
-func (sh *strictHandler) SetKeys(w http.ResponseWriter, r *http.Request) {
-	var request SetKeysRequestObject
+// SetTasks operation middleware
+func (sh *strictHandler) SetTasks(w http.ResponseWriter, r *http.Request) {
+	var request SetTasksRequestObject
 
-	var body SetKeysJSONRequestBody
+	var body SetTasksJSONRequestBody
 	if err := runtime.BindJSONBody(r, &body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -1326,18 +1417,18 @@ func (sh *strictHandler) SetKeys(w http.ResponseWriter, r *http.Request) {
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.SetKeys(ctx, request.(SetKeysRequestObject))
+		return sh.ssi.SetTasks(ctx, request.(SetTasksRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "SetKeys")
+		handler = middleware(handler, "SetTasks")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(SetKeysResponseObject); ok {
-		if err := validResponse.VisitSetKeysResponse(w); err != nil {
+	} else if validResponse, ok := response.(SetTasksResponseObject); ok {
+		if err := validResponse.VisitSetTasksResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1345,26 +1436,26 @@ func (sh *strictHandler) SetKeys(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DeleteKey operation middleware
-func (sh *strictHandler) DeleteKey(w http.ResponseWriter, r *http.Request, key Key, params DeleteKeyParams) {
-	var request DeleteKeyRequestObject
+// DeleteTask operation middleware
+func (sh *strictHandler) DeleteTask(w http.ResponseWriter, r *http.Request, task Task, params DeleteTaskParams) {
+	var request DeleteTaskRequestObject
 
-	request.Key = key
+	request.Task = task
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteKey(ctx, request.(DeleteKeyRequestObject))
+		return sh.ssi.DeleteTask(ctx, request.(DeleteTaskRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteKey")
+		handler = middleware(handler, "DeleteTask")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(DeleteKeyResponseObject); ok {
-		if err := validResponse.VisitDeleteKeyResponse(w); err != nil {
+	} else if validResponse, ok := response.(DeleteTaskResponseObject); ok {
+		if err := validResponse.VisitDeleteTaskResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1372,26 +1463,26 @@ func (sh *strictHandler) DeleteKey(w http.ResponseWriter, r *http.Request, key K
 	}
 }
 
-// GetKey operation middleware
-func (sh *strictHandler) GetKey(w http.ResponseWriter, r *http.Request, key Key, params GetKeyParams) {
-	var request GetKeyRequestObject
+// GetTask operation middleware
+func (sh *strictHandler) GetTask(w http.ResponseWriter, r *http.Request, task Task, params GetTaskParams) {
+	var request GetTaskRequestObject
 
-	request.Key = key
+	request.Task = task
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetKey(ctx, request.(GetKeyRequestObject))
+		return sh.ssi.GetTask(ctx, request.(GetTaskRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetKey")
+		handler = middleware(handler, "GetTask")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetKeyResponseObject); ok {
-		if err := validResponse.VisitGetKeyResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetTaskResponseObject); ok {
+		if err := validResponse.VisitGetTaskResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1399,14 +1490,14 @@ func (sh *strictHandler) GetKey(w http.ResponseWriter, r *http.Request, key Key,
 	}
 }
 
-// ModifyKey operation middleware
-func (sh *strictHandler) ModifyKey(w http.ResponseWriter, r *http.Request, key Key, params ModifyKeyParams) {
-	var request ModifyKeyRequestObject
+// ModifyTask operation middleware
+func (sh *strictHandler) ModifyTask(w http.ResponseWriter, r *http.Request, task Task, params ModifyTaskParams) {
+	var request ModifyTaskRequestObject
 
-	request.Key = key
+	request.Task = task
 	request.Params = params
 
-	var body ModifyKeyJSONRequestBody
+	var body ModifyTaskJSONRequestBody
 	if err := runtime.BindJSONBody(r, &body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -1414,18 +1505,18 @@ func (sh *strictHandler) ModifyKey(w http.ResponseWriter, r *http.Request, key K
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ModifyKey(ctx, request.(ModifyKeyRequestObject))
+		return sh.ssi.ModifyTask(ctx, request.(ModifyTaskRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ModifyKey")
+		handler = middleware(handler, "ModifyTask")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ModifyKeyResponseObject); ok {
-		if err := validResponse.VisitModifyKeyResponse(w); err != nil {
+	} else if validResponse, ok := response.(ModifyTaskResponseObject); ok {
+		if err := validResponse.VisitModifyTaskResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1433,14 +1524,14 @@ func (sh *strictHandler) ModifyKey(w http.ResponseWriter, r *http.Request, key K
 	}
 }
 
-// SetKey operation middleware
-func (sh *strictHandler) SetKey(w http.ResponseWriter, r *http.Request, key Key, params SetKeyParams) {
-	var request SetKeyRequestObject
+// SetTask operation middleware
+func (sh *strictHandler) SetTask(w http.ResponseWriter, r *http.Request, task Task, params SetTaskParams) {
+	var request SetTaskRequestObject
 
-	request.Key = key
+	request.Task = task
 	request.Params = params
 
-	var body SetKeyJSONRequestBody
+	var body SetTaskJSONRequestBody
 	if err := runtime.BindJSONBody(r, &body); err != nil {
 		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
 		return
@@ -1448,18 +1539,18 @@ func (sh *strictHandler) SetKey(w http.ResponseWriter, r *http.Request, key Key,
 	request.Body = &body
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.SetKey(ctx, request.(SetKeyRequestObject))
+		return sh.ssi.SetTask(ctx, request.(SetTaskRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "SetKey")
+		handler = middleware(handler, "SetTask")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(SetKeyResponseObject); ok {
-		if err := validResponse.VisitSetKeyResponse(w); err != nil {
+	} else if validResponse, ok := response.(SetTaskResponseObject); ok {
+		if err := validResponse.VisitSetTaskResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
