@@ -7,8 +7,8 @@
 //   * errors are gRPC status codes, not fields in the messages
 //   * RPCs need not map 1:1 to REST operations (8 REST operations, 3 RPCs)
 syntax = "proto3";
-package kvs.v1;
-option go_package = "github.com/your-team/kvs/gen/kvs/v1;kvsv1";
+package stdl.v1;
+option go_package = "github.com/mikerubins/DS_Project/stdl/gen/stdl/v1;stdlv1";
 
 service KVStore {
   // One key, a list, a prefix or a range; results stream back sorted.

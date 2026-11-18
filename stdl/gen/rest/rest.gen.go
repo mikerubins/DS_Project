@@ -1281,6 +1281,30 @@ func (response SetTask412ApplicationProblemPlusJSONResponse) VisitSetTaskRespons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// DeleteTasks Delete several tasks atomically
+	// (DELETE /v1/tasks)
+	DeleteTasks(ctx context.Context, request DeleteTasksRequestObject) (DeleteTasksResponseObject, error)
+	// GetTasks Read several tasks, sorted by task ID
+	// (GET /v1/tasks)
+	GetTasks(ctx context.Context, request GetTasksRequestObject) (GetTasksResponseObject, error)
+	// ModifyTasks Append to or increment several tasks atomically (read-modify-write)
+	// (PATCH /v1/tasks)
+	ModifyTasks(ctx context.Context, request ModifyTasksRequestObject) (ModifyTasksResponseObject, error)
+	// SetTasks Set several tasks atomically
+	// (POST /v1/tasks)
+	SetTasks(ctx context.Context, request SetTasksRequestObject) (SetTasksResponseObject, error)
+	// DeleteTask Delete one task
+	// (DELETE /v1/tasks/{task})
+	DeleteTask(ctx context.Context, request DeleteTaskRequestObject) (DeleteTaskResponseObject, error)
+	// GetTask Read one task
+	// (GET /v1/tasks/{task})
+	GetTask(ctx context.Context, request GetTaskRequestObject) (GetTaskResponseObject, error)
+	// ModifyTask Append to or increment one task (read-modify-write)
+	// (PATCH /v1/tasks/{task})
+	ModifyTask(ctx context.Context, request ModifyTaskRequestObject) (ModifyTaskResponseObject, error)
+	// SetTask Set one task (create or replace)
+	// (POST /v1/tasks/{task})
+	SetTask(ctx context.Context, request SetTaskRequestObject) (SetTaskResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
