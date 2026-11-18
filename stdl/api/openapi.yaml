@@ -20,7 +20,7 @@ info:
 
     * Reads accept `?consistency=sequential|linearizable` (default: sequential).
       All writes are linearizable.
-    * Every entry has a `version`; `GET /v1/keys/{key}` returns it as the
+    * Every entry has a `version`; `GET /v1/tasks/{task}` returns it as the
       `ETag`. Send it back in `If-Match` to write only if nothing changed in
       between (412 otherwise).
     * **POST** sets values. **PATCH** modifies them with a read-modify-write
@@ -301,6 +301,8 @@ components:
         participants:
           type: array
           items: { type: string }
+          minItems: 1
+          maxItems: 5
         priority:
           type: integer
           format: int32
@@ -316,32 +318,52 @@ components:
           format: int64
           description: Incremented on every write of this task
       description: Schema of the task body
-      
-    EntryMutables:
+
+    ModifyAction:
       type: object
-      description: Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
+      description: Modify action in EntryMutables message
       properties:
-        entry: { $ref: '#/components/schemas/EntryBody' }
-        mutables:
-          type: array
-          items:
-            type: string
-            enum: [name, description, participants, priority, completed, version]
-          description: Only one from each type of enum that indicates which fields is going to be changed
+        nameMutable:
+            type: boolean
+            default: false
+        descriptionMutable:
+            type: boolean
+            default: false
+        participantsMutable:
+            type: boolean
+            default: false
+        priorityMutable:
+            type: boolean
+            default: false
+        completedMutable:
+            type: boolean
+            default: false
+        versionMutable:
+            type: boolean
+            default: false
         appendParticipants:
-          type: boolean
-          default: false
-          description: Appending participants requires a string array of `participants`
+            type: boolean
+            default: false
+        entryBody: { $ref: '#/components/schemas/EntryBody' }
+
+    AppendAction:
+      type: object
+      description: Append action for participants
+      properties:
         participants:
           type: array
-          items:
-            type: string
-          description: Supply a list of participants for appending it to the task
-        incrementVersion:
-          type: boolean
-          default: false
-          description: Indicate if the version needs to be incremented
-    
+          items: { type: string }
+
+    EntryMutables:
+      type: object
+      description: Acts as a raw properties modifier or a version increment or participant append, Exactly one of `append`, `modify` or `increment`
+      properties:
+        oneOf:
+            - $ref: '#/components/schemas/ModifyAction'
+            - $ref: '#/components/schemas/AppendAction'
+            - incrementVersion:
+                type: boolean
+
     EntryList:
       type: object
       required: [entries]
@@ -349,7 +371,7 @@ components:
         entries:
           type: array
           items: { $ref: '#/components/schemas/Entry' }
-          
+
     SetBody:
       type: object
       required: [entryBody]
@@ -357,9 +379,9 @@ components:
         entry: { $ref: '#/components/schemas/EntryBody' }
 
     ModifyBody:
-      required: [body]
+      required: [entryMutables]
       properties:
-        body: { $ref: '#/components/schemas/EntryMutables' }
+        entryMutables: { $ref: '#/components/schemas/EntryMutables' }
 
     SetTasksBody:
       type: object

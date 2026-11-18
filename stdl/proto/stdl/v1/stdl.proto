@@ -10,14 +10,14 @@ syntax = "proto3";
 package stdl.v1;
 option go_package = "github.com/mikerubins/DS_Project/stdl/gen/stdl/v1;stdlv1";
 
-service KVStore {
-  // One key, a list, a prefix or a range; results stream back sorted.
-  // NOT_FOUND only when a single key was asked for and it is missing.
+service STDList {
+  // One task, a list, a prefix or a range; results stream back sorted.
+  // NOT_FOUND only when a single task was asked for and it is missing.
   rpc Read(ReadRequest) returns (stream ReadResponse);
-  // One UpdateRequest per key; all are applied atomically when the client
+  // One UpdateRequest per task; all are applied atomically when the client
   // closes the stream. FAILED_PRECONDITION if any if_version differs.
   rpc Update(stream UpdateRequest) returns (UpdateResponse);
-  // One DeleteRequest per key; applied atomically on close.
+  // One DeleteRequest per task; applied atomically on close.
   rpc Delete(stream DeleteRequest) returns (DeleteResponse);
   // Not in Part I:
   // rpc Watch(WatchRequest) returns (stream WatchResponse);
@@ -29,31 +29,74 @@ enum Consistency {
   CONSISTENCY_LINEARIZABLE = 2;
 }
 
+message EntryBody {
+    string name = 1;
+    string description = 2;
+    repeated string participants = 3;
+    int32 priority = 4;
+    bool completed = 5;
+    int64 version = 6;          // incremented on every write of this key
+}
+
 message Entry {
-  string key = 1;
-  string value = 2;
-  int64 version = 3;            // incremented on every write of this key
+  string task = 1;
+  EntryBody entryBody = 2;
+}
+
+message ModifyAction {
+    bool nameMutable = 1;
+    bool descriptionMutable = 2;
+    bool participantsMutable = 3;
+    bool priorityMutable = 4;
+    bool completedMutable = 5;
+    bool versionMutable = 6;
+    bool appendParticipants = 7;
+    EntryBody entryBody = 8;
+}
+
+message AppendAction {
+    repeated string participants = 1;
+}
+
+// Enforces: Exactly one of `modify`, `append`, or `increment version`
+message EntryMutables {
+  oneof action {
+    ModifyAction modifyFields = 1;
+    AppendAction appendParticipants = 2;
+    bool incrementVersion = 3;
+  }
 }
 
 // ---- Read --------------------------------------------------------------
+message ReadOneRequest {
+    string task = 1;
+}
+
+message ReadMultipleRequests {
+    repeated string tasks = 1; // task number filter
+    repeated string participants = 2; // task participants filter
+    repeated string priorities = 3; // task priorities filter
+    bool completed = 4; // task completed filter
+    string prefix = 5; // task prefix filter
+    TaskRange range = 6; // task range filter [from, to)
+    SortOrder sort = 7;
+    int32 limit = 8;              // 0 = no limit
+    bool tasks_only = 9;           // entries carry only the task
+    Consistency consistency = 10;
+}
+
 message ReadRequest {
   oneof select {
-    string key = 1;             // exactly one key
-    KeyList keys = 2;           // several keys (missing ones are skipped)
-    string prefix = 3;          // all keys with this prefix
-    KeyRange range = 4;         // all keys in [from, to)
+    ReadOneRequest oneRequest = 1; // read only one request
+    ReadMultipleRequests multipleRequests = 2; // read multiple requests
   }
-  SortOrder sort = 5;
-  int32 limit = 6;              // 0 = no limit
-  bool keys_only = 7;           // entries carry only the key
-  Consistency consistency = 8;
 }
-message KeyList  { repeated string keys = 1; }
-message KeyRange { string from = 1; string to = 2; }  // empty = unbounded
+message TaskList  { repeated string tasks = 1; }
+message TaskRange { string from = 1; string to = 2; }  // empty = unbounded
 message SortOrder {
-  enum Field { FIELD_KEY = 0; FIELD_VALUE = 1; FIELD_VERSION = 2; }
+  enum Field { FIELD_TASK = 0; FIELD_VERSION = 1; FIELD_PRIORITY = 2; }
   Field field = 1;
-  bool descending = 2;          // ties are always broken by key, ascending
+  bool descending = 2;          // ties are always broken by task, ascending
 }
 message ReadResponse {
   Entry entry = 1;              // one message per entry, in sort order
@@ -61,13 +104,12 @@ message ReadResponse {
 
 // ---- Update ------------------------------------------------------------
 message UpdateRequest {
-  string key = 1;
+  string task = 1;
   oneof op {
-    string set = 2;             // create or replace the value
-    string append = 3;          // append to the value ("" if missing)
-    int64 increment = 4;        // add to an integer value (0 if missing)
+    EntryBody entryBody = 2;             // create or replace the value
+    EntryMutable entryMutable = 3;       // modify fields
   }
-  optional int64 if_version = 5; // CAS; 0 = key must not exist
+  optional int64 if_version = 5; // CAS; 0 = task must not exist
 }
 message UpdateResponse {
   repeated Entry entries = 1;   // entries after the update, request order
@@ -76,7 +118,7 @@ message UpdateResponse {
 
 // ---- Delete ------------------------------------------------------------
 message DeleteRequest {
-  string key = 1;
+  string task = 1;
   optional int64 if_version = 2;
 }
 message DeleteResponse {
