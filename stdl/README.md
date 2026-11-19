@@ -62,13 +62,13 @@ Until a new RPC is written, it answers `UNIMPLEMENTED`, which becomes HTTP 501, 
 ```sh
 # prerequisites: Go >= 1.26, protoc (install: https://protobuf.dev/installation/)
 make setup        # once: pins oapi-codegen, protoc-gen-go, protoc-gen-go-grpc in go.mod
-make run          # generates, builds, starts node n1 (REST :8080, gRPC :50051)
-./etc/demo.sh     # in another terminal
+./etc/demo.sh     # builds, starts n1 and forwarding n2, tests both ports in parallel, then stops them
 
 make check        # all in one: generators, build, two nodes, every status code checked
 
-make run2         # node n2 (REST :8081) forwards everything to n1 over gRPC
-./etc/demo.sh http://localhost:8081   # values say "from n1"
+# To run the nodes manually instead:
+make run          # node n1 (REST :8080, gRPC :50051)
+make run2         # in another terminal: n2 (REST :8081) forwards to n1
 ```
 
 ## Editing vs. viewing the API
