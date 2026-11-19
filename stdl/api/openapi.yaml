@@ -263,6 +263,7 @@ paths:
       responses:
         '204':
           description: Deleted (also returned if the task did not exist)
+        '400': { $ref: '#/components/responses/Problem' }
         '412': { $ref: '#/components/responses/Problem' }
 
 components:
