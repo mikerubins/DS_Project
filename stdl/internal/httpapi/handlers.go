@@ -62,16 +62,26 @@ func NewHTTPHandler(stdl stdlv1.STDLClient, mux *http.ServeMux) http.Handler {
 // one method per operationId in your openapi.yaml.
 // ---------------------------------------------------------------------------
 
-// GET /v1/keys?key=..&key=.. | ?prefix=.. | ?from=..&to=..  [&sort=&limit=&keysOnly=]
-func (h *Handlers) GetKeys(ctx context.Context, req rest.GetKeysRequestObject) (rest.GetKeysResponseObject, error) {
+// GET /v1/tasks?task=..&task=.. |  ?participant=.. | ?priority=..  |  ?completed=true/false  | ?from=..&to=..  [&sort=&limit=&keysOnly=]
+func (h *Handlers) GetTasks(ctx context.Context, req rest.GetTasksRequestObject) (rest.GetTasksResponseObject, error) {
 	p := req.Params
-	in := &kvsv1.ReadRequest{
+
+	in := &stdlv1.ReadRequest{
 		Sort:        toProtoSort(p.Sort),
 		Limit:       deref(p.Limit),
 		KeysOnly:    deref(p.KeysOnly),
-		Consistency: toProtoConsistency(p.Consistency),
+		Consistency: toProtoConsistency(p.Consistency)
+
+		ReadMultipleRequests: &stdlv1.ReadMultipleRequests{
+            Sort:        toProtoSort(p.Sort),
+            Limit:       deref(p.Limit),
+            TasksOnly:    deref(p.KeysOnly),
+            Consistency: toProtoConsistency(p.Consistency)
+		}
 	}
-	// At most one selector; none = all keys.
+
+
+	// At least one selector; none = all tasks.
 	selectors := 0
 	if p.Key != nil {
 		selectors++
@@ -100,8 +110,8 @@ func (h *Handlers) GetKeys(ctx context.Context, req rest.GetKeysRequestObject) (
 	return rest.GetKeys200JSONResponse{Entries: entries}, nil
 }
 
-// POST /v1/keys — set several keys in one atomic Update.
-func (h *Handlers) SetKeys(ctx context.Context, req rest.SetKeysRequestObject) (rest.SetKeysResponseObject, error) {
+// POST /v1/tasks — set several tasks in one atomic Update.
+func (h *Handlers) SetTasks(ctx context.Context, req rest.SetTasksRequestObject) (rest.SetKeysResponseObject, error) {
 	var ups []*kvsv1.UpdateRequest
 	for _, e := range req.Body.Entries {
 		ups = append(ups, &kvsv1.UpdateRequest{
