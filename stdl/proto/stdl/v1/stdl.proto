@@ -76,13 +76,14 @@ message ReadMultipleRequests {
     repeated string tasks = 1; // task number filter
     repeated string participants = 2; // task participants filter
     repeated string priorities = 3; // task priorities filter
-    bool completed = 4; // task completed filter
-    string prefix = 5; // task prefix filter
-    TaskRange range = 6; // task range filter [from, to)
-    SortOrder sort = 7;
-    int32 limit = 8;              // 0 = no limit
-    bool tasks_only = 9;           // entries carry only the task
-    Consistency consistency = 10;
+    bool byCompleted = 4; // task completed filter
+    bool byOpen = 5; // task open filter
+    string prefix = 6; // task prefix filter
+    TaskRange range = 7; // task range filter [from, to)
+    SortOrder sort = 8;
+    int32 limit = 9;              // 0 = no limit
+    bool tasks_only = 10;           // entries carry only the task
+    Consistency consistency = 11;
 }
 
 message ReadRequest {

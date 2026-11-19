@@ -25,7 +25,7 @@ import (
 // codes.Unimplemented (HTTP 501 after translation): when you add RPCs for your
 // own service, the project keeps compiling while you work through them.
 type Server struct {
-	stdlv1.UnimplementedSTDLServer
+	stdlv1.UnimplementedSTDListServer
 
 	NodeID string // shown in dummy values, so you can see WHICH server answered
 }
@@ -45,59 +45,120 @@ const dummyVersion = 1
 
 // Read is server streaming: one ReadResponse per entry, in sort order.
 func (s *Server) Read(req *stdlv1.ReadRequest, stream stdlv1.STDList_ReadServer) error {
-	var tasks []string
+	var tasks []string = nil
+	var tasksTemp []string = nil
 	switch sel := req.GetSelect().(type) {
-	case *stdlv1.ReadRequest_Task: // exactly one task: missing is an error
-		if sel.Task == "missing" {
-			return status.Errorf(codes.NotFound, "key %q not found", sel.Key)
-		}
-		keys = []string{sel.Key}
-	case *stdlv1.ReadRequest_Keys: // several keys: missing ones are skipped
-		for _, k := range sel.Keys.GetKeys() {
-			if k != "missing" {
-				keys = append(keys, k)
+		case *stdlv1.ReadRequest_ReadOneRequest:
+			tasks = []string{sel.ReadOneRequest.GetTask()}
+			if sel.ReadOneRequest.GetTask() == "missing" || sel.ReadOneRequest.GetTask() == "" {
+				return status.Errorf(codes.NotFound, "task %q not found", sel.ReadOneRequest.GetTask())
 			}
-		}
-	case *stdlv1.ReadRequest_Prefix:
-		for _, k := range dummyKeys {
-			if strings.HasPrefix(k, sel.Prefix) {
-				keys = append(keys, k)
+			return nil
+		case *stdlv1.ReadRequest_ReadMultipleRequests: // several tasks: missing ones are skipped
+			// Variables that participate in filtering the tasks (intersection of all filters)
+			var tasksReq = sel.ReadMultipleRequests.GetTasks(); // task filter
+			var participants = sel.ReadMultipleRequests.GetParticipants(); // task participants filter
+			var priorities = sel.ReadMultipleRequests.GetPriorities(); // task priorities filter
+			var byCompleted = sel.ReadMultipleRequests.GetCompleted(); // task completed filter
+			var byOpen = sel.ReadMultipleRequests.GetOpen(); // task open filter
+			var prefix = sel.ReadMultipleRequests.GetPrefix(); // task prefix filter
+			var rangeTask = sel.ReadMultipleRequests.GetRange(); // task range filter [from, to)
+			var sort = sel.ReadMultipleRequests.GetSort(); // task sort order
+			var limit = sel.ReadMultipleRequests.GetLimit();  // 0 = no limit
+			var tasks_only = sel.ReadMultipleRequests.GetTasksOnly();  // entries carry only the task
+			// If no filters presented, return all tasks
+			if len(tasks) == 0 && len(participants) == 0 && len(priorities) == 0 && len(completed) == 0 && prefix == "" && rangeTask == nil {
+				tasks = append(tasks, dummyTasks...)
 			}
-		}
-	case *stdlv1.ReadRequest_Range: // [from, to); an empty bound is open
-		for _, k := range dummyKeys {
-			if k >= sel.Range.GetFrom() && (sel.Range.GetTo() == "" || k < sel.Range.GetTo()) {
-				keys = append(keys, k)
+			else {
+				// Task filtering
+				if len(tasksReq) > 0 {
+					for _, k := range tasksReq {
+						if k != "missing" && k != "" {
+							tasks = append(tasks, k)
+						}
+					}
+				}
+				else {
+					tasks = append(tasks, dummyTasks...)
+				}
+				// Prefix filtering
+				if prefix != "" {
+					for _, k := range tasks {
+						if strings.HasPrefix(k, prefix) {
+							tasksTemp = append(tasksTemp, k)
+						}
+					}
+					tasks = tasksTemp
+					tasksTemp = nil
+				}
+				// Completed tasks filtering
+				if byCompleted == true {
+					for _, k := range tasks {
+						if k.GetCompleted() == true {
+							tasksTemp = append(tasksTemp, k)
+						}
+					}
+					tasks = tasksTemp
+					tasksTemp = nil
+				}
+				// Open tasks filtering
+				if byOpen == true {
+					for _, k := range tasks {
+						if k.GetCompleted() == false {
+							tasksTemp = append(tasksTemp, k)
+						}
+					}
+					tasks = tasksTemp
+					tasksTemp = nil
+				}
+				// Range filtering
+				if rangeTask != nil { // [from, to); an empty bound is open
+					for _, k := range tasks {
+						if k >= rangeTask.GetFrom() && (rangeTask.GetTo() == "" || k < rangeTask.GetTo()) {
+							keys = append(keys, k)
+						}
+					}
+				}
+					tasks = tasksTemp
+					tasksTemp = nil
+				}
+				// Participants filtering
+				if len(participants) > 0 {
+					for _, k := range tasks {
+						for _, p := range participants {
+							if k.GetParticipants() == p {
+								tasksTemp = append(tasksTemp, k)
+								break
+							}
+						}
+					}
+					tasks = tasksTemp
+					tasksTemp = nil
+				}
+				// Priorities filtering
+				if len(priorities) > 0 {
+					for _, k := range tasks {
+						for _, p := range priorities {
+							if k.GetPriority() == p {
+								tasksTemp = append(tasksTemp, k)
+								break
+							}
+						}
+					}
+					tasks = tasksTemp
+					tasksTemp = nil
+				}
 			}
-		}
-
-    case *stdlv1.ReadRequest_ReadOneRequest:
-        if sel.ReadOneRequest.Task == "missing" {
-			return status.Errorf(codes.NotFound, "task %q not found", sel.ReadOneRequest.GetTask())
-		}
-		tasks = []string{sel.ReadOneRequest.GetTask()}
-    case *stdlv1.ReadRequest_ReadMultipleRequests: // several tasks: missing ones are skipped
-		for _, k := range sel.Tasks.GetTasks() {
-			if k != "missing" {
-				tasks = append(tasks, k)
-			}
-		}
-		var tasks2 []string
-		for _, k := range tasks {
-			if strings.HasPrefix(k, sel.Prefix) {
-				tasks2 = append(tasks2, k)
-			}
-		}
-	case nil: // no selector: every task
-		tasks = append(tasks, dummyTasks...)
+	case nil:
+		return status.Errorf(codes.InvalidArgument, "no selector specified for read")
 	}
 
-
-	// Sorting by key only; a real store sorts by req.Sort.Field as well.
-	sort.Strings(keys)
+	// Sorting by task only
+	sort.Strings(tasks)
 	if req.GetSort().GetDescending() {
-		for i, j := 0, len(keys)-1; i < j; i, j = i+1, j-1 {
-			keys[i], keys[j] = keys[j], keys[i]
+		for i, j := 0, len(tasks)-1; i < j; i, j = i+1, j-1 {
+			tasks[i], tasks[j] = tasks[j], tasks[i]
 		}
 	}
 	if n := int(req.GetLimit()); n > 0 && n < len(tasks) {
@@ -153,7 +214,7 @@ func (s *Server) Update(stream stdlv1.STDList_UpdateServer) error {
 }
 
 // Delete is client streaming as well: one DeleteRequest per key.
-func (s *Server) Delete(stream stdlv1.KVStore_DeleteServer) error {
+func (s *Server) Delete(stream stdlv1.STDList_DeleteServer) error {
 	reqs, err := recvAll[stdlv1.DeleteRequest](stream.Recv)
 	if err != nil {
 		return err

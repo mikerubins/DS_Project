@@ -85,10 +85,15 @@ paths:
           required: false
           schema: { type: string }
         - $ref: '#/components/parameters/Sort'
-        - name: completed
+        - name: byCompleted
           in: query
           required: false
-          description: Choose between completed tasks (true) and open tasks (false)
+          description: Filter completed tasks
+          schema: { type: boolean, default: true }
+        - name: byOpen
+          in: query
+          required: false
+          description: Filter open tasks
           schema: { type: boolean, default: true }
         - name: limit
           in: query
