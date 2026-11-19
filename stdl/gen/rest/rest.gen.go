@@ -34,36 +34,6 @@ func (e Consistency) Valid() bool {
 	}
 }
 
-// Defines values for EntryMutablesMutables.
-const (
-	EntryMutablesMutablesCompleted    EntryMutablesMutables = "completed"
-	EntryMutablesMutablesDescription  EntryMutablesMutables = "description"
-	EntryMutablesMutablesName         EntryMutablesMutables = "name"
-	EntryMutablesMutablesParticipants EntryMutablesMutables = "participants"
-	EntryMutablesMutablesPriority     EntryMutablesMutables = "priority"
-	EntryMutablesMutablesVersion      EntryMutablesMutables = "version"
-)
-
-// Valid indicates whether the value is a known member of the EntryMutablesMutables enum.
-func (e EntryMutablesMutables) Valid() bool {
-	switch e {
-	case EntryMutablesMutablesCompleted:
-		return true
-	case EntryMutablesMutablesDescription:
-		return true
-	case EntryMutablesMutablesName:
-		return true
-	case EntryMutablesMutablesParticipants:
-		return true
-	case EntryMutablesMutablesPriority:
-		return true
-	case EntryMutablesMutablesVersion:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for Sort.
 const (
 	SortMinusPriority Sort = "-priority"
@@ -124,6 +94,11 @@ func (e GetTasksParamsSort) Valid() bool {
 	}
 }
 
+// AppendAction Append action for participants
+type AppendAction struct {
+	Participants *[]string `json:"participants,omitempty"`
+}
+
 // Consistency defines model for Consistency.
 type Consistency string
 
@@ -159,37 +134,40 @@ type EntryList struct {
 	Entries []Entry `json:"entries"`
 }
 
-// EntryMutables Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
+// EntryMutables Exactly one of modifyFields, appendParticipants, or incrementVersion
 type EntryMutables struct {
-	// AppendParticipants Appending participants requires a string array of `participants`
-	AppendParticipants *bool `json:"appendParticipants,omitempty"`
+	// AppendParticipants Append action for participants
+	AppendParticipants *AppendAction `json:"appendParticipants,omitempty"`
+	IncrementVersion   *bool         `json:"incrementVersion,omitempty"`
 
-	// Entry Schema of the task body
-	Entry *EntryBody `json:"entry,omitempty"`
-
-	// IncrementVersion Indicate if the version needs to be incremented
-	IncrementVersion *bool `json:"incrementVersion,omitempty"`
-
-	// Mutables Only one from each type of enum that indicates which fields is going to be changed
-	Mutables *[]EntryMutablesMutables `json:"mutables,omitempty"`
-
-	// Participants Supply a list of participants for appending it to the task
-	Participants *[]string `json:"participants,omitempty"`
+	// ModifyFields Modify action in EntryMutables message
+	ModifyFields *ModifyAction `json:"modifyFields,omitempty"`
 }
 
-// EntryMutablesMutables defines model for EntryMutables.Mutables.
-type EntryMutablesMutables string
+// ModifyAction Modify action in EntryMutables message
+type ModifyAction struct {
+	AppendParticipants *bool `json:"appendParticipants,omitempty"`
+	CompletedMutable   *bool `json:"completedMutable,omitempty"`
+	DescriptionMutable *bool `json:"descriptionMutable,omitempty"`
+
+	// EntryBody Schema of the task body
+	EntryBody           *EntryBody `json:"entryBody,omitempty"`
+	NameMutable         *bool      `json:"nameMutable,omitempty"`
+	ParticipantsMutable *bool      `json:"participantsMutable,omitempty"`
+	PriorityMutable     *bool      `json:"priorityMutable,omitempty"`
+	VersionMutable      *bool      `json:"versionMutable,omitempty"`
+}
 
 // ModifyBody defines model for ModifyBody.
 type ModifyBody struct {
-	// Body Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
-	Body EntryMutables `json:"body"`
+	// EntryMutables Exactly one of modifyFields, appendParticipants, or incrementVersion
+	EntryMutables EntryMutables `json:"entryMutables"`
 }
 
 // ModifyTasksBody defines model for ModifyTasksBody.
 type ModifyTasksBody struct {
 	Ops []struct {
-		// EntryMutables Acts as a raw properties modifier or a version incrementor or participant append, Exactly one of `append`, `modify` or `increment`
+		// EntryMutables Exactly one of modifyFields, appendParticipants, or incrementVersion
 		EntryMutables EntryMutables `json:"entryMutables"`
 		IfVersion     *int64        `json:"ifVersion,omitempty"`
 		Task          string        `json:"task"`
@@ -211,15 +189,15 @@ type Problem struct {
 
 // SetBody defines model for SetBody.
 type SetBody struct {
-	// Entry Schema of the task body
-	Entry *EntryBody `json:"entry,omitempty"`
+	// EntryBody Schema of the task body
+	EntryBody EntryBody `json:"entryBody"`
 }
 
 // SetTasksBody defines model for SetTasksBody.
 type SetTasksBody struct {
 	Entries []struct {
-		// Entry Schema of the task body
-		Entry *EntryBody `json:"entry,omitempty"`
+		// EntryBody Schema of the task body
+		EntryBody EntryBody `json:"entryBody"`
 
 		// IfVersion Write only if the version equals this (0 = must not exist)
 		IfVersion *int64 `json:"ifVersion,omitempty"`
@@ -259,8 +237,11 @@ type GetTasksParams struct {
 	// Sort Sort field; prefix `-` for descending. Ties break by task.
 	Sort *GetTasksParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
-	// Completed Choose between completed tasks (true) and open tasks (false)
-	Completed *bool `form:"completed,omitempty" json:"completed,omitempty"`
+	// ByCompleted Filter completed tasks
+	ByCompleted *bool `form:"byCompleted,omitempty" json:"byCompleted,omitempty"`
+
+	// ByOpen Filter open tasks
+	ByOpen *bool `form:"byOpen,omitempty" json:"byOpen,omitempty"`
 
 	// Limit Maximum number of entries (0 or absent = no limit)
 	Limit *int32 `form:"limit,omitempty" json:"limit,omitempty"`
@@ -478,15 +459,28 @@ func (siw *ServerInterfaceWrapper) GetTasks(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// ------------- Optional query parameter "completed" -------------
+	// ------------- Optional query parameter "byCompleted" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "completed", r.URL.Query(), &params.Completed, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "byCompleted", r.URL.Query(), &params.ByCompleted, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "completed"})
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "byCompleted"})
 		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "completed", Err: err})
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "byCompleted", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "byOpen" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "byOpen", r.URL.Query(), &params.ByOpen, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "byOpen"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "byOpen", Err: err})
 		}
 		return
 	}

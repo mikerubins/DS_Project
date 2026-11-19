@@ -1,9 +1,4 @@
-// Package grpcsvc implements the KVStore gRPC service.
-//
-// STEP 4 — In Part I every RPC returns a DUMMY response: the goal is only to
-// prove that the .proto compiles and that two processes can talk over gRPC.
-// In Part II this type will apply operations to the state machine, and in
-// Part III it will submit them to the replicated log.
+// Package grpcsvc implements the simple to-do list gRPC service.
 package grpcsvc
 
 import (
@@ -19,213 +14,433 @@ import (
 	stdlv1 "github.com/mikerubins/DS_Project/stdl/gen/stdl/v1"
 )
 
-// Server implements stdlv1.STDLServer.
-//
-// Embedding UnimplementedSTDLServer makes every RPC not written yet return
-// codes.Unimplemented (HTTP 501 after translation): when you add RPCs for your
-// own service, the project keeps compiling while you work through them.
 type Server struct {
 	stdlv1.UnimplementedSTDListServer
-
-	NodeID string // shown in dummy values, so you can see WHICH server answered
+	NodeID string
 }
 
-func New(nodeID string) *Server { return &Server{NodeID: nodeID} }
+func New(nodeID string) *Server {
+	return &Server{NodeID: nodeID}
+}
 
-// dummyTasks is the pretend content of the store. The task "missing" never
-// exists, so you can test the 404 path end to end.
-var dummyTasks = []string{"alpha", "beta", "gamma"}
+var dummyTaskNames = []string{"alpha", "beta", "gamma"}
 
-// The dummy store pretends that every existing task is at this version.
-const dummyVersion = 1
+const dummyVersion int64 = 1
 
-// ---------------------------------------------------------------------------
-// The example service (a key-value store). Replace it with your own service.
-// ---------------------------------------------------------------------------
+func dummyEntry(task string) *stdlv1.Entry {
+	switch task {
+	case "alpha":
+		return &stdlv1.Entry{
+			Task: task,
+			EntryBody: &stdlv1.EntryBody{
+				Name: "Alpha", Description: "dummy alpha task",
+				Participants: []string{"alice", "bob"}, Priority: 1,
+				Completed: false, Version: dummyVersion,
+			},
+		}
+	case "beta":
+		return &stdlv1.Entry{
+			Task: task,
+			EntryBody: &stdlv1.EntryBody{
+				Name: "Beta", Description: "dummy beta task",
+				Participants: []string{"bob"}, Priority: 3,
+				Completed: true, Version: dummyVersion,
+			},
+		}
+	case "gamma":
+		return &stdlv1.Entry{
+			Task: task,
+			EntryBody: &stdlv1.EntryBody{
+				Name: "Gamma", Description: "dummy gamma task",
+				Participants: []string{"carol"}, Priority: 5,
+				Completed: false, Version: dummyVersion,
+			},
+		}
+	default:
+		return nil
+	}
+}
 
-// Read is server streaming: one ReadResponse per entry, in sort order.
+func dummyEntryList(tasks []string, tasksOnly bool) []*stdlv1.Entry {
+	entries := make([]*stdlv1.Entry, 0, len(tasks))
+	for _, task := range tasks {
+		entry := dummyEntry(task)
+		if entry == nil {
+			continue
+		}
+		if tasksOnly {
+			entry = &stdlv1.Entry{Task: task}
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+// Read is a server-streaming RPC. For Part I it filters and sorts dummy entries.
 func (s *Server) Read(req *stdlv1.ReadRequest, stream stdlv1.STDList_ReadServer) error {
-	var tasks []string = nil
-	var tasksTemp []string = nil
+	if req == nil {
+		return status.Error(codes.InvalidArgument, "read request is required")
+	}
+
+	var tasks []string
 	switch sel := req.GetSelect().(type) {
-		case *stdlv1.ReadRequest_ReadOneRequest:
-			tasks = []string{sel.ReadOneRequest.GetTask()}
-			if sel.ReadOneRequest.GetTask() == "missing" || sel.ReadOneRequest.GetTask() == "" {
-				return status.Errorf(codes.NotFound, "task %q not found", sel.ReadOneRequest.GetTask())
+	case *stdlv1.ReadRequest_OneRequest:
+		if sel.OneRequest == nil {
+			return status.Error(codes.InvalidArgument, "oneRequest is required")
+		}
+		task := sel.OneRequest.GetTask()
+		if task == "" {
+			return status.Error(codes.InvalidArgument, "task is required")
+		}
+		entry := dummyEntry(task)
+		if entry == nil {
+			return status.Errorf(codes.NotFound, "task %q not found", task)
+		}
+		if err := stream.Send(&stdlv1.ReadResponse{Entry: entry}); err != nil {
+			return err
 			}
 			return nil
-		case *stdlv1.ReadRequest_ReadMultipleRequests: // several tasks: missing ones are skipped
-			// Variables that participate in filtering the tasks (intersection of all filters)
-			var tasksReq = sel.ReadMultipleRequests.GetTasks(); // task filter
-			var participants = sel.ReadMultipleRequests.GetParticipants(); // task participants filter
-			var priorities = sel.ReadMultipleRequests.GetPriorities(); // task priorities filter
-			var byCompleted = sel.ReadMultipleRequests.GetCompleted(); // task completed filter
-			var byOpen = sel.ReadMultipleRequests.GetOpen(); // task open filter
-			var prefix = sel.ReadMultipleRequests.GetPrefix(); // task prefix filter
-			var rangeTask = sel.ReadMultipleRequests.GetRange(); // task range filter [from, to)
-			var sort = sel.ReadMultipleRequests.GetSort(); // task sort order
-			var limit = sel.ReadMultipleRequests.GetLimit();  // 0 = no limit
-			var tasks_only = sel.ReadMultipleRequests.GetTasksOnly();  // entries carry only the task
-			// If no filters presented, return all tasks
-			if len(tasks) == 0 && len(participants) == 0 && len(priorities) == 0 && len(completed) == 0 && prefix == "" && rangeTask == nil {
-				tasks = append(tasks, dummyTasks...)
+
+	case *stdlv1.ReadRequest_MultipleRequests:
+		if sel.MultipleRequests == nil {
+			return status.Error(codes.InvalidArgument, "multipleRequests is required")
+		}
+		filter := sel.MultipleRequests
+
+		if filter.GetByCompleted() && filter.GetByOpen() {
+			return status.Error(codes.InvalidArgument, "byCompleted and byOpen cannot both be true")
+		}
+		if filter.GetLimit() < 0 {
+			return status.Error(codes.InvalidArgument, "limit cannot be negative")
+		}
+		for _, priority := range filter.GetPriorities() {
+			if priority < 1 || priority > 5 {
+				return status.Errorf(codes.InvalidArgument, "priority %d must be between 1 and 5", priority)
 			}
-			else {
-				// Task filtering
-				if len(tasksReq) > 0 {
-					for _, k := range tasksReq {
-						if k != "missing" && k != "" {
-							tasks = append(tasks, k)
-						}
+		}
+		if r := filter.GetRange(); r != nil &&
+			r.GetFrom() != "" && r.GetTo() != "" && r.GetFrom() >= r.GetTo() {
+			return status.Error(codes.InvalidArgument, "range from must be less than range to")
+		}
+
+		if len(filter.GetTasks()) == 0 {
+			tasks = append(tasks, dummyTaskNames...)
+		} else {
+			seen := make(map[string]bool)
+			for _, task := range filter.GetTasks() {
+				if task == "" || task == "missing" || seen[task] {
+					continue
 					}
-				}
-				else {
-					tasks = append(tasks, dummyTasks...)
-				}
-				// Prefix filtering
-				if prefix != "" {
-					for _, k := range tasks {
-						if strings.HasPrefix(k, prefix) {
-							tasksTemp = append(tasksTemp, k)
-						}
-					}
-					tasks = tasksTemp
-					tasksTemp = nil
-				}
-				// Completed tasks filtering
-				if byCompleted == true {
-					for _, k := range tasks {
-						if k.GetCompleted() == true {
-							tasksTemp = append(tasksTemp, k)
-						}
-					}
-					tasks = tasksTemp
-					tasksTemp = nil
-				}
-				// Open tasks filtering
-				if byOpen == true {
-					for _, k := range tasks {
-						if k.GetCompleted() == false {
-							tasksTemp = append(tasksTemp, k)
-						}
-					}
-					tasks = tasksTemp
-					tasksTemp = nil
-				}
-				// Range filtering
-				if rangeTask != nil { // [from, to); an empty bound is open
-					for _, k := range tasks {
-						if k >= rangeTask.GetFrom() && (rangeTask.GetTo() == "" || k < rangeTask.GetTo()) {
-							keys = append(keys, k)
-						}
-					}
-				}
-					tasks = tasksTemp
-					tasksTemp = nil
-				}
-				// Participants filtering
-				if len(participants) > 0 {
-					for _, k := range tasks {
-						for _, p := range participants {
-							if k.GetParticipants() == p {
-								tasksTemp = append(tasksTemp, k)
-								break
-							}
-						}
-					}
-					tasks = tasksTemp
-					tasksTemp = nil
-				}
-				// Priorities filtering
-				if len(priorities) > 0 {
-					for _, k := range tasks {
-						for _, p := range priorities {
-							if k.GetPriority() == p {
-								tasksTemp = append(tasksTemp, k)
-								break
-							}
-						}
-					}
-					tasks = tasksTemp
-					tasksTemp = nil
+				if dummyEntry(task) != nil {
+					tasks = append(tasks, task)
+					seen[task] = true
 				}
 			}
+		}
+
+		filtered := make([]string, 0, len(tasks))
+		for _, task := range tasks {
+			entry := dummyEntry(task)
+			if entry == nil {
+				continue
+			}
+			body := entry.GetEntryBody()
+
+			if len(filter.GetParticipants()) > 0 && !containsParticipant(body.GetParticipants(), filter.GetParticipants()) {
+				continue
+			}
+			if len(filter.GetPriorities()) > 0 && !containsInt32(filter.GetPriorities(), body.GetPriority()) {
+				continue
+			}
+			if filter.GetByCompleted() && !body.GetCompleted() {
+				continue
+			}
+			if filter.GetByOpen() && body.GetCompleted() {
+				continue
+			}
+			if filter.GetPrefix() != "" && !strings.HasPrefix(task, filter.GetPrefix()) {
+				continue
+			}
+			if r := filter.GetRange(); r != nil &&
+				((r.GetFrom() != "" && task < r.GetFrom()) ||
+					(r.GetTo() != "" && task >= r.GetTo())) {
+				continue
+			}
+			filtered = append(filtered, task)
+				}
+		tasks = filtered
+
+		sortTasks(tasks, filter.GetSort())
+		if n := int(filter.GetLimit()); n > 0 && n < len(tasks) {
+			tasks = tasks[:n]
+		}
+
+		for _, entry := range dummyEntryList(tasks, filter.GetTasksOnly()) {
+			if err := stream.Send(&stdlv1.ReadResponse{Entry: entry}); err != nil {
+				return err
+							}
+						}
+		return nil
+
 	case nil:
-		return status.Errorf(codes.InvalidArgument, "no selector specified for read")
+		return status.Error(codes.InvalidArgument, "read selector is required")
+	default:
+		return status.Error(codes.InvalidArgument, "unsupported read selector")
 	}
-
-	// Sorting by task only
-	sort.Strings(tasks)
-	if req.GetSort().GetDescending() {
-		for i, j := 0, len(tasks)-1; i < j; i, j = i+1, j-1 {
-			tasks[i], tasks[j] = tasks[j], tasks[i]
-		}
-	}
-	if n := int(req.GetLimit()); n > 0 && n < len(tasks) {
-		tasks = tasks[:n]
-	}
-
-	for _, k := range tasks {
-		e := &stdlv1.Entry{Task: k, Version: dummyVersion}
-		if !req.GetTasksOnly() {
-			e.Name = fmt.Sprintf("dummy from %s (%s read)", s.NodeID, req.GetConsistency())
-		}
-		if err := stream.Send(&stdlv1.ReadResponse{Entry: e}); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
-// Update is client streaming: the client sends one UpdateRequest per task and
-// closes the stream; the server answers once, for the whole batch.
+func containsParticipant(have, wanted []string) bool {
+	for _, participant := range wanted {
+		for _, candidate := range have {
+			if candidate == participant {
+				return true
+			}
+				}
+			}
+	return false
+}
+
+func containsInt32(have []int32, wanted int32) bool {
+	for _, candidate := range have {
+		if candidate == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func sortTasks(tasks []string, order *stdlv1.SortOrder) {
+	sort.Slice(tasks, func(i, j int) bool {
+		left, right := dummyEntry(tasks[i]), dummyEntry(tasks[j])
+		if order == nil {
+			return tasks[i] < tasks[j]
+		}
+
+		switch order.GetField() {
+		case stdlv1.SortOrder_FIELD_TASK:
+			if tasks[i] != tasks[j] {
+				if order.GetDescending() {
+					return tasks[i] > tasks[j]
+	}
+				return tasks[i] < tasks[j]
+			}
+		case stdlv1.SortOrder_FIELD_VERSION:
+			if left.GetEntryBody().GetVersion() != right.GetEntryBody().GetVersion() {
+				if order.GetDescending() {
+					return left.GetEntryBody().GetVersion() > right.GetEntryBody().GetVersion()
+				}
+				return left.GetEntryBody().GetVersion() < right.GetEntryBody().GetVersion()
+			}
+		case stdlv1.SortOrder_FIELD_PRIORITY:
+			if left.GetEntryBody().GetPriority() != right.GetEntryBody().GetPriority() {
+				if order.GetDescending() {
+					return left.GetEntryBody().GetPriority() > right.GetEntryBody().GetPriority()
+				}
+				return left.GetEntryBody().GetPriority() < right.GetEntryBody().GetPriority()
+		}
+	}
+		return tasks[i] < tasks[j]
+	})
+}
+
+// Update is a client-streaming RPC; all dummy updates are validated before a reply.
 func (s *Server) Update(stream stdlv1.STDList_UpdateServer) error {
 	reqs, err := recvAll[stdlv1.UpdateRequest](stream.Recv)
 	if err != nil {
 		return err
 	}
 	if len(reqs) == 0 {
-		return status.Error(codes.InvalidArgument, "no updates")
+		return status.Error(codes.InvalidArgument, "at least one update is required")
 	}
-	// Check the whole batch before "applying" anything: all or nothing.
-	for _, r := range reqs {
-		if r.IfVersion != nil && r.GetIfVersion() != dummyVersion {
-			return status.Errorf(codes.FailedPrecondition,
-				"key %q is at version %d, not %d", r.GetKey(), dummyVersion, r.GetIfVersion())
+
+	// Validate the complete batch before computing or returning any entries.
+	for _, req := range reqs {
+		if req == nil {
+			return status.Error(codes.InvalidArgument, "update request cannot be null")
+		}
+		if req.GetTask() == "" {
+			return status.Error(codes.InvalidArgument, "task is required")
+		}
+		entry := dummyEntry(req.GetTask())
+		if entry == nil {
+			if req.IfVersion != nil && req.GetIfVersion() != 0 {
+				return status.Errorf(codes.FailedPrecondition, "task %q does not exist", req.GetTask())
+			}
+		} else {
+			if req.IfVersion != nil {
+				if req.GetIfVersion() == 0 {
+					return status.Errorf(codes.FailedPrecondition, "task %q already exists", req.GetTask())
+				}
+				if req.GetIfVersion() != dummyVersion {
+					return status.Errorf(codes.FailedPrecondition, "task %q is at version %d, not %d",
+						req.GetTask(), dummyVersion, req.GetIfVersion())
 		}
 	}
+		}
+		if req.GetOp() == nil {
+			return status.Errorf(codes.InvalidArgument, "task %q: no update operation", req.GetTask())
+		}
+		switch op := req.GetOp().(type) {
+		case *stdlv1.UpdateRequest_EntryBody:
+			if err := validateDummyBody(op.EntryBody); err != nil {
+				return status.Errorf(codes.InvalidArgument, "task %q: %v", req.GetTask(), err)
+			}
+		case *stdlv1.UpdateRequest_EntryMutable:
+			if action, ok := op.EntryMutable.GetAction().(*stdlv1.EntryMutables_ModifyFields); ok &&
+				action.ModifyFields != nil {
+				if err := validateDummyBody(action.ModifyFields.GetEntryBody()); err != nil {
+					return status.Errorf(codes.InvalidArgument, "task %q: %v", req.GetTask(), err)
+				}
+			}
+		}
+	}
+
 	out := &stdlv1.UpdateResponse{}
-	for _, r := range reqs { // nothing is stored: compute the result and echo it
-		var value string
-		switch op := r.GetOp().(type) {
-		case *stdlv1.UpdateRequest_Set:
-			value = op.Set
-		case *stdlv1.UpdateRequest_Append:
-			value = "dummy" + op.Append // pretend the stored value was "dummy"
-		case *stdlv1.UpdateRequest_Increment:
-			value = fmt.Sprint(41 + op.Increment) // pretend it was 41
+	for _, req := range reqs {
+		entry := dummyEntry(req.GetTask())
+		created := entry == nil
+		body := baseDummyBody(entry)
+
+		switch op := req.GetOp().(type) {
+		case *stdlv1.UpdateRequest_EntryBody:
+			if op.EntryBody == nil {
+				return status.Errorf(codes.InvalidArgument, "task %q: entryBody is required", req.GetTask())
+			}
+			body = cloneEntryBody(op.EntryBody)
+			body.Version = baseDummyBody(entry).GetVersion() + 1
+
+		case *stdlv1.UpdateRequest_EntryMutable:
+			body, err = applyDummyMutation(body, op.EntryMutable)
+			if err != nil {
+				return status.Errorf(codes.InvalidArgument, "task %q: %v", req.GetTask(), err)
+			}
+			body.Version++
 		default:
-			return status.Errorf(codes.InvalidArgument, "key %q: no operation", r.GetKey())
+			return status.Errorf(codes.InvalidArgument, "task %q: unsupported update operation", req.GetTask())
 		}
-		out.Entries = append(out.Entries, &stdlv1.Entry{Key: r.GetKey(), Value: value, Version: dummyVersion + 1})
-		out.Created = append(out.Created, r.GetKey() == "missing") // only "missing" is new
+		out.Entries = append(out.Entries, &stdlv1.Entry{Task: req.GetTask(), EntryBody: body})
+		out.Created = append(out.Created, created)
 	}
 	return stream.SendAndClose(out)
 }
 
-// Delete is client streaming as well: one DeleteRequest per key.
+func baseDummyBody(entry *stdlv1.Entry) *stdlv1.EntryBody {
+	if entry != nil && entry.GetEntryBody() != nil {
+		return cloneEntryBody(entry.GetEntryBody())
+	}
+	return &stdlv1.EntryBody{Version: dummyVersion}
+}
+
+func cloneEntryBody(body *stdlv1.EntryBody) *stdlv1.EntryBody {
+	if body == nil {
+		return &stdlv1.EntryBody{Version: dummyVersion}
+	}
+	return &stdlv1.EntryBody{
+		Name: body.GetName(), Description: body.GetDescription(),
+		Participants: append([]string(nil), body.GetParticipants()...),
+		Priority:     body.GetPriority(), Completed: body.GetCompleted(),
+		Version: body.GetVersion(),
+	}
+}
+
+func validateDummyBody(body *stdlv1.EntryBody) error {
+	if body == nil {
+		return nil
+	}
+	if body.GetPriority() != 0 && (body.GetPriority() < 1 || body.GetPriority() > 5) {
+		return fmt.Errorf("priority must be between 1 and 5")
+	}
+	if len(body.GetParticipants()) > 5 {
+		return fmt.Errorf("participants cannot contain more than 5 entries")
+	}
+	return nil
+}
+
+func applyDummyMutation(body *stdlv1.EntryBody, mutables *stdlv1.EntryMutables) (*stdlv1.EntryBody, error) {
+	if mutables == nil {
+		return nil, errors.New("entryMutables is required")
+	}
+	switch action := mutables.GetAction().(type) {
+	case *stdlv1.EntryMutables_ModifyFields:
+		if action.ModifyFields == nil {
+			return nil, errors.New("modifyFields is required")
+		}
+		modify := action.ModifyFields
+		if modify.GetNameMutable() {
+			body.Name = modify.GetEntryBody().GetName()
+		}
+		if modify.GetDescriptionMutable() {
+			body.Description = modify.GetEntryBody().GetDescription()
+		}
+		if modify.GetParticipantsMutable() {
+			body.Participants = append([]string(nil), modify.GetEntryBody().GetParticipants()...)
+		}
+		if modify.GetPriorityMutable() {
+			body.Priority = modify.GetEntryBody().GetPriority()
+		}
+		if modify.GetCompletedMutable() {
+			body.Completed = modify.GetEntryBody().GetCompleted()
+		}
+		if modify.GetVersionMutable() {
+			body.Version = modify.GetEntryBody().GetVersion()
+		}
+		if modify.GetAppendParticipants() {
+			body.Participants = append(body.Participants, modify.GetEntryBody().GetParticipants()...)
+		}
+	case *stdlv1.EntryMutables_AppendParticipants:
+		if action.AppendParticipants == nil {
+			return nil, errors.New("appendParticipants is required")
+		}
+		body.Participants = append(body.Participants, action.AppendParticipants.GetParticipants()...)
+	case *stdlv1.EntryMutables_IncrementVersion:
+		// The write itself increments the version below.
+	default:
+		return nil, errors.New("exactly one mutation action is required")
+	}
+	if err := validateDummyBody(body); err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// Delete is a client-streaming RPC. Missing dummy tasks are successful no-ops.
 func (s *Server) Delete(stream stdlv1.STDList_DeleteServer) error {
 	reqs, err := recvAll[stdlv1.DeleteRequest](stream.Recv)
 	if err != nil {
 		return err
 	}
+	if len(reqs) == 0 {
+		return status.Error(codes.InvalidArgument, "at least one delete is required")
+	}
+
+	seen := make(map[string]bool)
 	var deleted int32
-	for _, r := range reqs {
-		if r.IfVersion != nil && r.GetIfVersion() != dummyVersion {
-			return status.Errorf(codes.FailedPrecondition,
-				"key %q is at version %d, not %d", r.GetKey(), dummyVersion, r.GetIfVersion())
+	for _, req := range reqs {
+		if req == nil {
+			return status.Error(codes.InvalidArgument, "delete request cannot be null")
 		}
-		if r.GetKey() != "missing" {
+		if req.GetTask() == "" {
+			return status.Error(codes.InvalidArgument, "task is required")
+		}
+
+		entry := dummyEntry(req.GetTask())
+		if entry == nil {
+			if req.IfVersion != nil && req.GetIfVersion() != 0 {
+				return status.Errorf(codes.FailedPrecondition, "task %q does not exist", req.GetTask())
+			}
+			continue
+		}
+		if req.IfVersion != nil {
+			if req.GetIfVersion() == 0 {
+				return status.Errorf(codes.FailedPrecondition, "task %q already exists", req.GetTask())
+			}
+			if req.GetIfVersion() != dummyVersion {
+				return status.Errorf(codes.FailedPrecondition, "task %q is at version %d, not %d",
+					req.GetTask(), dummyVersion, req.GetIfVersion())
+			}
+		}
+		if !seen[req.GetTask()] {
+			seen[req.GetTask()] = true
 			deleted++
 		}
 	}

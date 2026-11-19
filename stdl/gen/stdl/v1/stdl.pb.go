@@ -554,16 +554,17 @@ func (x *ReadOneRequest) GetTask() string {
 
 type ReadMultipleRequests struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tasks         []string               `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`               // task number filter
-	Participants  []string               `protobuf:"bytes,2,rep,name=participants,proto3" json:"participants,omitempty"` // task participants filter
-	Priorities    []string               `protobuf:"bytes,3,rep,name=priorities,proto3" json:"priorities,omitempty"`     // task priorities filter
-	Completed     bool                   `protobuf:"varint,4,opt,name=completed,proto3" json:"completed,omitempty"`      // task completed filter
-	Prefix        string                 `protobuf:"bytes,5,opt,name=prefix,proto3" json:"prefix,omitempty"`             // task prefix filter
-	Range         *TaskRange             `protobuf:"bytes,6,opt,name=range,proto3" json:"range,omitempty"`               // task range filter [from, to)
-	Sort          *SortOrder             `protobuf:"bytes,7,opt,name=sort,proto3" json:"sort,omitempty"`
-	Limit         int32                  `protobuf:"varint,8,opt,name=limit,proto3" json:"limit,omitempty"`                          // 0 = no limit
-	TasksOnly     bool                   `protobuf:"varint,9,opt,name=tasks_only,json=tasksOnly,proto3" json:"tasks_only,omitempty"` // entries carry only the task
-	Consistency   Consistency            `protobuf:"varint,10,opt,name=consistency,proto3,enum=stdl.v1.Consistency" json:"consistency,omitempty"`
+	Tasks         []string               `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`                   // task number filter
+	Participants  []string               `protobuf:"bytes,2,rep,name=participants,proto3" json:"participants,omitempty"`     // task participants filter
+	Priorities    []int32                `protobuf:"varint,3,rep,packed,name=priorities,proto3" json:"priorities,omitempty"` // task priorities filter
+	ByCompleted   bool                   `protobuf:"varint,4,opt,name=byCompleted,proto3" json:"byCompleted,omitempty"`      // task completed filter
+	ByOpen        bool                   `protobuf:"varint,5,opt,name=byOpen,proto3" json:"byOpen,omitempty"`                // task open filter
+	Prefix        string                 `protobuf:"bytes,6,opt,name=prefix,proto3" json:"prefix,omitempty"`                 // task prefix filter
+	Range         *TaskRange             `protobuf:"bytes,7,opt,name=range,proto3" json:"range,omitempty"`                   // task range filter [from, to)
+	Sort          *SortOrder             `protobuf:"bytes,8,opt,name=sort,proto3" json:"sort,omitempty"`
+	Limit         int32                  `protobuf:"varint,9,opt,name=limit,proto3" json:"limit,omitempty"`                           // 0 = no limit
+	TasksOnly     bool                   `protobuf:"varint,10,opt,name=tasks_only,json=tasksOnly,proto3" json:"tasks_only,omitempty"` // entries carry only the task
+	Consistency   Consistency            `protobuf:"varint,11,opt,name=consistency,proto3,enum=stdl.v1.Consistency" json:"consistency,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -612,16 +613,23 @@ func (x *ReadMultipleRequests) GetParticipants() []string {
 	return nil
 }
 
-func (x *ReadMultipleRequests) GetPriorities() []string {
+func (x *ReadMultipleRequests) GetPriorities() []int32 {
 	if x != nil {
 		return x.Priorities
 	}
 	return nil
 }
 
-func (x *ReadMultipleRequests) GetCompleted() bool {
+func (x *ReadMultipleRequests) GetByCompleted() bool {
 	if x != nil {
-		return x.Completed
+		return x.ByCompleted
+	}
+	return false
+}
+
+func (x *ReadMultipleRequests) GetByOpen() bool {
+	if x != nil {
+		return x.ByOpen
 	}
 	return false
 }
@@ -951,7 +959,7 @@ type UpdateRequest struct {
 	//	*UpdateRequest_EntryBody
 	//	*UpdateRequest_EntryMutable
 	Op            isUpdateRequest_Op `protobuf_oneof:"op"`
-	IfVersion     *int64             `protobuf:"varint,5,opt,name=if_version,json=ifVersion,proto3,oneof" json:"if_version,omitempty"` // CAS; 0 = task must not exist
+	IfVersion     *int64             `protobuf:"varint,4,opt,name=if_version,json=ifVersion,proto3,oneof" json:"if_version,omitempty"` // CAS; 0 = task must not exist
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1222,22 +1230,23 @@ const file_stdl_v1_stdl_proto_rawDesc = "" +
 	"\x10incrementVersion\x18\x03 \x01(\bH\x00R\x10incrementVersionB\b\n" +
 	"\x06action\"$\n" +
 	"\x0eReadOneRequest\x12\x12\n" +
-	"\x04task\x18\x01 \x01(\tR\x04task\"\xe5\x02\n" +
+	"\x04task\x18\x01 \x01(\tR\x04task\"\x81\x03\n" +
 	"\x14ReadMultipleRequests\x12\x14\n" +
 	"\x05tasks\x18\x01 \x03(\tR\x05tasks\x12\"\n" +
 	"\fparticipants\x18\x02 \x03(\tR\fparticipants\x12\x1e\n" +
 	"\n" +
-	"priorities\x18\x03 \x03(\tR\n" +
-	"priorities\x12\x1c\n" +
-	"\tcompleted\x18\x04 \x01(\bR\tcompleted\x12\x16\n" +
-	"\x06prefix\x18\x05 \x01(\tR\x06prefix\x12(\n" +
-	"\x05range\x18\x06 \x01(\v2\x12.stdl.v1.TaskRangeR\x05range\x12&\n" +
-	"\x04sort\x18\a \x01(\v2\x12.stdl.v1.SortOrderR\x04sort\x12\x14\n" +
-	"\x05limit\x18\b \x01(\x05R\x05limit\x12\x1d\n" +
+	"priorities\x18\x03 \x03(\x05R\n" +
+	"priorities\x12 \n" +
+	"\vbyCompleted\x18\x04 \x01(\bR\vbyCompleted\x12\x16\n" +
+	"\x06byOpen\x18\x05 \x01(\bR\x06byOpen\x12\x16\n" +
+	"\x06prefix\x18\x06 \x01(\tR\x06prefix\x12(\n" +
+	"\x05range\x18\a \x01(\v2\x12.stdl.v1.TaskRangeR\x05range\x12&\n" +
+	"\x04sort\x18\b \x01(\v2\x12.stdl.v1.SortOrderR\x04sort\x12\x14\n" +
+	"\x05limit\x18\t \x01(\x05R\x05limit\x12\x1d\n" +
 	"\n" +
-	"tasks_only\x18\t \x01(\bR\ttasksOnly\x126\n" +
-	"\vconsistency\x18\n" +
-	" \x01(\x0e2\x14.stdl.v1.ConsistencyR\vconsistency\"\x9f\x01\n" +
+	"tasks_only\x18\n" +
+	" \x01(\bR\ttasksOnly\x126\n" +
+	"\vconsistency\x18\v \x01(\x0e2\x14.stdl.v1.ConsistencyR\vconsistency\"\x9f\x01\n" +
 	"\vReadRequest\x129\n" +
 	"\n" +
 	"oneRequest\x18\x01 \x01(\v2\x17.stdl.v1.ReadOneRequestH\x00R\n" +
@@ -1266,7 +1275,7 @@ const file_stdl_v1_stdl_proto_rawDesc = "" +
 	"\tentryBody\x18\x02 \x01(\v2\x12.stdl.v1.EntryBodyH\x00R\tentryBody\x12<\n" +
 	"\fentryMutable\x18\x03 \x01(\v2\x16.stdl.v1.EntryMutablesH\x00R\fentryMutable\x12\"\n" +
 	"\n" +
-	"if_version\x18\x05 \x01(\x03H\x01R\tifVersion\x88\x01\x01B\x04\n" +
+	"if_version\x18\x04 \x01(\x03H\x01R\tifVersion\x88\x01\x01B\x04\n" +
 	"\x02opB\r\n" +
 	"\v_if_version\"T\n" +
 	"\x0eUpdateResponse\x12(\n" +
