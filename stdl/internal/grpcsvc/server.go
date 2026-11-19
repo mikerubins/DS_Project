@@ -64,7 +64,21 @@ func dummyEntry(task string) *stdlv1.Entry {
 	}
 }
 
-func dummyEntryList(tasks []string, tasksOnly bool) []*stdlv1.Entry {
+func dummyDescription(description, nodeID string) string {
+	if description == "" {
+		return fmt.Sprintf("dummy response from %s", nodeID)
+	}
+	return fmt.Sprintf("%s (dummy from %s)", description, nodeID)
+}
+
+func dummyEntryForNode(entry *stdlv1.Entry, nodeID string) *stdlv1.Entry {
+	if entry != nil && entry.GetEntryBody() != nil {
+		entry.EntryBody.Description = dummyDescription(entry.GetEntryBody().GetDescription(), nodeID)
+	}
+	return entry
+}
+
+func dummyEntryList(tasks []string, tasksOnly bool, nodeID string) []*stdlv1.Entry {
 	entries := make([]*stdlv1.Entry, 0, len(tasks))
 	for _, task := range tasks {
 		entry := dummyEntry(task)
@@ -73,6 +87,8 @@ func dummyEntryList(tasks []string, tasksOnly bool) []*stdlv1.Entry {
 		}
 		if tasksOnly {
 			entry = &stdlv1.Entry{Task: task}
+		} else {
+			entry = dummyEntryForNode(entry, nodeID)
 		}
 		entries = append(entries, entry)
 	}
@@ -99,6 +115,7 @@ func (s *Server) Read(req *stdlv1.ReadRequest, stream stdlv1.STDList_ReadServer)
 		if entry == nil {
 			return status.Errorf(codes.NotFound, "task %q not found", task)
 		}
+		entry = dummyEntryForNode(entry, s.NodeID)
 		if err := stream.Send(&stdlv1.ReadResponse{Entry: entry}); err != nil {
 			return err
 			}
@@ -178,7 +195,7 @@ func (s *Server) Read(req *stdlv1.ReadRequest, stream stdlv1.STDList_ReadServer)
 			tasks = tasks[:n]
 		}
 
-		for _, entry := range dummyEntryList(tasks, filter.GetTasksOnly()) {
+		for _, entry := range dummyEntryList(tasks, filter.GetTasksOnly(), s.NodeID) {
 			if err := stream.Send(&stdlv1.ReadResponse{Entry: entry}); err != nil {
 				return err
 							}
@@ -321,6 +338,7 @@ func (s *Server) Update(stream stdlv1.STDList_UpdateServer) error {
 		default:
 			return status.Errorf(codes.InvalidArgument, "task %q: unsupported update operation", req.GetTask())
 		}
+		body.Description = dummyDescription(body.GetDescription(), s.NodeID)
 		out.Entries = append(out.Entries, &stdlv1.Entry{Task: req.GetTask(), EntryBody: body})
 		out.Created = append(out.Created, created)
 	}
