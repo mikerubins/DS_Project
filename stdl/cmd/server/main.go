@@ -45,7 +45,7 @@ func main() {
 		log.Fatalf("listen %s: %v", *grpcAddr, err)
 	}
 	gs := grpc.NewServer()
-	stdlv1.RegisterSTDLServer(gs, grpcsvc.New(*id))
+	stdlv1.RegisterSTDListServer(gs, grpcsvc.New(*id))
 	reflection.Register(gs) // lets you poke the server with grpcurl
 	go func() {
 		log.Printf("[%s] gRPC listening on %s", *id, *grpcAddr)
@@ -82,7 +82,7 @@ func main() {
 	})
 	hs := &http.Server{
 		Addr:              *httpAddr,
-		Handler:           withCORS(*corsOrigin, httpapi.NewHTTPHandler(stdlv1.NewSTDLClient(conn), mux)),
+		Handler:           withCORS(*corsOrigin, httpapi.NewHTTPHandler(stdlv1.NewSTDListClient(conn), mux)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
