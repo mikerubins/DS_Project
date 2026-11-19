@@ -36,6 +36,8 @@ func NewHTTPHandler(stdl stdlv1.STDListClient, mux *http.ServeMux) http.Handler 
 	return rest.HandlerFromMux(strict, mux)
 }
 
+// GetTasks converts the collection-query filters into one Read RPC and returns
+// the complete server stream as an ordered EntryList.
 func (h *Handlers) GetTasks(ctx context.Context, req rest.GetTasksRequestObject) (rest.GetTasksResponseObject, error) {
 	p := req.Params
 	multiple := &stdlv1.ReadMultipleRequests{
@@ -84,6 +86,8 @@ func (h *Handlers) GetTasks(ctx context.Context, req rest.GetTasksRequestObject)
 	return rest.GetTasks200JSONResponse{Entries: entries}, nil
 }
 
+// SetTasks validates and forwards a batch of create-or-replace operations to
+// one Update stream, preserving request order in the response.
 func (h *Handlers) SetTasks(ctx context.Context, req rest.SetTasksRequestObject) (rest.SetTasksResponseObject, error) {
 	if req.Body == nil {
 		return nil, status.Error(codes.InvalidArgument, "request body is required")
@@ -114,6 +118,8 @@ func (h *Handlers) SetTasks(ctx context.Context, req rest.SetTasksRequestObject)
 	return rest.SetTasks200JSONResponse{Entries: entriesFromProto(out.GetEntries())}, nil
 }
 
+// ModifyTasks translates each task mutation into an EntryMutable UpdateRequest
+// and sends the complete batch through one atomic Update stream.
 func (h *Handlers) ModifyTasks(ctx context.Context, req rest.ModifyTasksRequestObject) (rest.ModifyTasksResponseObject, error) {
 	if req.Body == nil {
 		return nil, status.Error(codes.InvalidArgument, "request body is required")
@@ -144,6 +150,7 @@ func (h *Handlers) ModifyTasks(ctx context.Context, req rest.ModifyTasksRequestO
 	return rest.ModifyTasks200JSONResponse{Entries: entriesFromProto(out.GetEntries())}, nil
 }
 
+// DeleteTasks forwards a deduplicated task list as one Delete stream.
 func (h *Handlers) DeleteTasks(ctx context.Context, req rest.DeleteTasksRequestObject) (rest.DeleteTasksResponseObject, error) {
 	if len(req.Params.Task) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one task is required")
@@ -167,6 +174,8 @@ func (h *Handlers) DeleteTasks(ctx context.Context, req rest.DeleteTasksRequestO
 	return rest.DeleteTasks200JSONResponse{Deleted: out.GetDeleted()}, nil
 }
 
+// GetTask asks Read for one task. EOF or a missing dummy entry becomes NOT_FOUND
+// so the REST layer can return 404.
 func (h *Handlers) GetTask(ctx context.Context, req rest.GetTaskRequestObject) (rest.GetTaskResponseObject, error) {
 	if req.Task == "" {
 		return nil, status.Error(codes.InvalidArgument, "task is required")
@@ -202,6 +211,8 @@ func (h *Handlers) GetTask(ctx context.Context, req rest.GetTaskRequestObject) (
 	}, nil
 }
 
+// SetTask converts If-Match and the REST body into one create-or-replace
+// UpdateRequest. Created=true selects the 201 response; otherwise 200 is used.
 func (h *Handlers) SetTask(ctx context.Context, req rest.SetTaskRequestObject) (rest.SetTaskResponseObject, error) {
 	if req.Task == "" {
 		return nil, status.Error(codes.InvalidArgument, "task is required")
@@ -236,6 +247,7 @@ func (h *Handlers) SetTask(ctx context.Context, req rest.SetTaskRequestObject) (
 	return rest.SetTask200JSONResponse(entry), nil
 }
 
+// ModifyTask validates exactly one mutation action and forwards it to Update.
 func (h *Handlers) ModifyTask(ctx context.Context, req rest.ModifyTaskRequestObject) (rest.ModifyTaskResponseObject, error) {
 	if req.Task == "" {
 		return nil, status.Error(codes.InvalidArgument, "task is required")
@@ -265,6 +277,8 @@ func (h *Handlers) ModifyTask(ctx context.Context, req rest.ModifyTaskRequestObj
 	return rest.ModifyTask200JSONResponse(entryFromProto(out.GetEntries()[0])), nil
 }
 
+// DeleteTask converts If-Match into an optional CAS version and forwards a
+// single DeleteRequest. The server returns 204 even for a missing task.
 func (h *Handlers) DeleteTask(ctx context.Context, req rest.DeleteTaskRequestObject) (rest.DeleteTaskResponseObject, error) {
 	if req.Task == "" {
 		return nil, status.Error(codes.InvalidArgument, "task is required")
