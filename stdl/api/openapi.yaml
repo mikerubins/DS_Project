@@ -23,8 +23,9 @@ info:
     * Every entry has a `version`; `GET /v1/tasks/{task}` returns it as the
       `ETag`. Send it back in `If-Match` to write only if nothing changed in
       between (412 otherwise).
-    * **POST** sets values. **PATCH** modifies them with a read-modify-write
-      operation (`append` or `increment`).
+    * **POST** creates or replaces task bodies.
+    * **PATCH** modifies task bodies or appends participants.
+    * Filters can be combined: tasks matching all supplied filters are returned.
 servers:
   - url: /
     description: The server that serves this page (use with /docs)
@@ -43,9 +44,10 @@ paths:
       operationId: getTasks
       summary: Read several tasks, sorted by task ID
       description: |
-        Select tasks with at most one of `task` (repeatable), `participant` (repeatable), `priority` (repeatable integer in [1,5]), `completed` (true/false), `prefix`, or
-        `from`/`to` (range [from, to) of tasks). No selector = all keys.
-        Missing tasks are skipped.
+        Read all tasks or select a task list by task IDs, participants, priorities,
+        completion state, prefix, or the half-open range `[from, to)`.
+        Supplied filters are intersected. Missing task IDs are skipped.
+        Use `limit` to cap the response and `tasksOnly` to omit each entry body.
       parameters:
         - name: task
           in: query
@@ -117,7 +119,10 @@ paths:
       tags: [tasks]
       operationId: setTasks
       summary: Set several tasks atomically
-      description: All or nothing. 412 if any `ifVersion` differs.
+      description: |
+        Create or replace multiple tasks in one atomic operation.
+        The whole batch succeeds only if every optional `ifVersion` matches.
+        Returns `412` if any compare-and-set version differs.
       requestBody:
         required: true
         content:
@@ -134,8 +139,11 @@ paths:
     patch:
       tags: [tasks]
       operationId: modifyTasks
-      summary: 'Append to or increment several tasks atomically (read-modify-write)'
-      description: All or nothing. 412 if any `ifVersion` differs.
+      summary: Modify several tasks atomically
+      description: |
+        Modify, append participants to, or increment the version of multiple tasks
+        in one atomic operation. Exactly one mutation action is allowed per task.
+        Returns `412` if any compare-and-set version differs.
       requestBody:
         required: true
         content:
@@ -153,6 +161,7 @@ paths:
       tags: [tasks]
       operationId: deleteTasks
       summary: Delete several tasks atomically
+      description: Delete every supplied task in one operation. Missing tasks are ignored.
       parameters:
         - name: task
           in: query
@@ -179,6 +188,9 @@ paths:
       tags: [task]
       operationId: getTask
       summary: Read one task
+      description: |
+        Return one task and its current entry body.
+        The response `ETag` contains the task version for use in `If-Match`.
       parameters:
         - $ref: '#/components/parameters/Consistency'
       responses:
@@ -194,6 +206,9 @@ paths:
       tags: [task]
       operationId: setTask
       summary: Set one task (create or replace)
+      description: |
+        Create a task with status `201`, or replace an existing task with status
+        `200`. A mismatched `If-Match` value returns `412`.
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -217,8 +232,10 @@ paths:
     patch:
       tags: [task]
       operationId: modifyTask
-      summary: Append to or increment one task (read-modify-write)
-      description: Exactly one of `append`, `modify` or `increment`
+      summary: Modify one task
+      description: |
+        Apply exactly one mutation: `modifyFields`, `appendParticipants`,
+        or `incrementVersion`. A mismatched `If-Match` value returns `412`.
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -238,6 +255,9 @@ paths:
       tags: [task]
       operationId: deleteTask
       summary: Delete one task
+      description: |
+        Delete the task. Missing tasks are successful no-ops; a mismatched
+        `If-Match` version returns `412`.
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       responses:
@@ -251,11 +271,13 @@ components:
       name: task
       in: path
       required: true
+      description: Unique task identifier.
       schema: { type: string }
     Consistency:
       name: consistency
       in: query
       required: false
+      description: Read consistency. Defaults to sequential.
       schema: { $ref: '#/components/schemas/Consistency' }
     Sort:
       name: sort
@@ -290,13 +312,18 @@ components:
       type: string
       enum: [sequential, linearizable]
       default: sequential
+      description: Sequential or linearizable read consistency.
 
     Entry:
       type: object
       required: [task, entryBody]
+      description: A task identifier and its complete task body.
       properties:
-        task: { type: string }
-        entryBody: { $ref: '#/components/schemas/EntryBody' }
+        task:
+          type: string
+          description: Unique task identifier.
+        entryBody:
+          $ref: '#/components/schemas/EntryBody'
 
     EntryBody:
       type: object
@@ -326,7 +353,9 @@ components:
 
     ModifyAction:
       type: object
-      description: Modify action in EntryMutables message
+      description: |
+        Selects individual mutable fields and supplies replacement values.
+        Each mutable flag applies only to the corresponding field.
       properties:
         nameMutable:
             type: boolean
@@ -353,10 +382,12 @@ components:
 
     AppendAction:
       type: object
-      description: Append action for participants
+      description: Append participants without removing existing participants.
       properties:
         participants:
           type: array
+          minItems: 1
+          maxItems: 5
           items: { type: string }
 
     EntryMutables:
@@ -369,6 +400,7 @@ components:
           $ref: '#/components/schemas/AppendAction'
         incrementVersion:
           type: boolean
+          description: Set to true to increment the task version.
 
     EntryList:
       type: object
@@ -381,13 +413,18 @@ components:
     SetBody:
       type: object
       required: [entryBody]
+      description: Complete task body for a create-or-replace operation.
       properties:
-        entryBody: { $ref: '#/components/schemas/EntryBody' }
+        entryBody:
+          $ref: '#/components/schemas/EntryBody'
 
     ModifyBody:
+      type: object
       required: [entryMutables]
+      description: Exactly one mutation to apply to one task.
       properties:
-        entryMutables: { $ref: '#/components/schemas/EntryMutables' }
+        entryMutables:
+          $ref: '#/components/schemas/EntryMutables'
 
     SetTasksBody:
       type: object
