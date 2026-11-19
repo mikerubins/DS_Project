@@ -23,9 +23,9 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/mikerubins/DS_Project/stdl/api"
-	stdlv1 "mikerubins/DS_Project/stdl/gen/kvs/v1"
-	"mikerubins/DS_Project/stdl/internal/grpcsvc"
-	"gmikerubins/DS_Project/stdl/internal/httpapi"
+	stdlv1 "github.com/mikerubins/DS_Project/stdl/gen/stdl/v1"
+	"github.com/mikerubins/DS_Project/stdl/internal/grpcsvc"
+	"github.com/mikerubins/DS_Project/stdl/internal/httpapi"
 )
 
 func main() {
