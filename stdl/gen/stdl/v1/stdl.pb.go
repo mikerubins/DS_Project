@@ -511,6 +511,7 @@ func (*EntryMutables_IncrementVersion) isEntryMutables_Action() {}
 type ReadOneRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Task          string                 `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	Consistency   Consistency            `protobuf:"varint,2,opt,name=consistency,proto3,enum=stdl.v1.Consistency" json:"consistency,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -550,6 +551,13 @@ func (x *ReadOneRequest) GetTask() string {
 		return x.Task
 	}
 	return ""
+}
+
+func (x *ReadOneRequest) GetConsistency() Consistency {
+	if x != nil {
+		return x.Consistency
+	}
+	return Consistency_CONSISTENCY_UNSPECIFIED
 }
 
 type ReadMultipleRequests struct {
@@ -1228,9 +1236,10 @@ const file_stdl_v1_stdl_proto_rawDesc = "" +
 	"\fmodifyFields\x18\x01 \x01(\v2\x15.stdl.v1.ModifyActionH\x00R\fmodifyFields\x12G\n" +
 	"\x12appendParticipants\x18\x02 \x01(\v2\x15.stdl.v1.AppendActionH\x00R\x12appendParticipants\x12,\n" +
 	"\x10incrementVersion\x18\x03 \x01(\bH\x00R\x10incrementVersionB\b\n" +
-	"\x06action\"$\n" +
+	"\x06action\"\\\n" +
 	"\x0eReadOneRequest\x12\x12\n" +
-	"\x04task\x18\x01 \x01(\tR\x04task\"\x81\x03\n" +
+	"\x04task\x18\x01 \x01(\tR\x04task\x126\n" +
+	"\vconsistency\x18\x02 \x01(\x0e2\x14.stdl.v1.ConsistencyR\vconsistency\"\x81\x03\n" +
 	"\x14ReadMultipleRequests\x12\x14\n" +
 	"\x05tasks\x18\x01 \x03(\tR\x05tasks\x12\"\n" +
 	"\fparticipants\x18\x02 \x03(\tR\fparticipants\x12\x1e\n" +
@@ -1336,27 +1345,28 @@ var file_stdl_v1_stdl_proto_depIdxs = []int32{
 	2,  // 1: stdl.v1.ModifyAction.entryBody:type_name -> stdl.v1.EntryBody
 	4,  // 2: stdl.v1.EntryMutables.modifyFields:type_name -> stdl.v1.ModifyAction
 	5,  // 3: stdl.v1.EntryMutables.appendParticipants:type_name -> stdl.v1.AppendAction
-	11, // 4: stdl.v1.ReadMultipleRequests.range:type_name -> stdl.v1.TaskRange
-	12, // 5: stdl.v1.ReadMultipleRequests.sort:type_name -> stdl.v1.SortOrder
-	0,  // 6: stdl.v1.ReadMultipleRequests.consistency:type_name -> stdl.v1.Consistency
-	7,  // 7: stdl.v1.ReadRequest.oneRequest:type_name -> stdl.v1.ReadOneRequest
-	8,  // 8: stdl.v1.ReadRequest.multipleRequests:type_name -> stdl.v1.ReadMultipleRequests
-	1,  // 9: stdl.v1.SortOrder.field:type_name -> stdl.v1.SortOrder.Field
-	3,  // 10: stdl.v1.ReadResponse.entry:type_name -> stdl.v1.Entry
-	2,  // 11: stdl.v1.UpdateRequest.entryBody:type_name -> stdl.v1.EntryBody
-	6,  // 12: stdl.v1.UpdateRequest.entryMutable:type_name -> stdl.v1.EntryMutables
-	3,  // 13: stdl.v1.UpdateResponse.entries:type_name -> stdl.v1.Entry
-	9,  // 14: stdl.v1.STDList.Read:input_type -> stdl.v1.ReadRequest
-	14, // 15: stdl.v1.STDList.Update:input_type -> stdl.v1.UpdateRequest
-	16, // 16: stdl.v1.STDList.Delete:input_type -> stdl.v1.DeleteRequest
-	13, // 17: stdl.v1.STDList.Read:output_type -> stdl.v1.ReadResponse
-	15, // 18: stdl.v1.STDList.Update:output_type -> stdl.v1.UpdateResponse
-	17, // 19: stdl.v1.STDList.Delete:output_type -> stdl.v1.DeleteResponse
-	17, // [17:20] is the sub-list for method output_type
-	14, // [14:17] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	0,  // 4: stdl.v1.ReadOneRequest.consistency:type_name -> stdl.v1.Consistency
+	11, // 5: stdl.v1.ReadMultipleRequests.range:type_name -> stdl.v1.TaskRange
+	12, // 6: stdl.v1.ReadMultipleRequests.sort:type_name -> stdl.v1.SortOrder
+	0,  // 7: stdl.v1.ReadMultipleRequests.consistency:type_name -> stdl.v1.Consistency
+	7,  // 8: stdl.v1.ReadRequest.oneRequest:type_name -> stdl.v1.ReadOneRequest
+	8,  // 9: stdl.v1.ReadRequest.multipleRequests:type_name -> stdl.v1.ReadMultipleRequests
+	1,  // 10: stdl.v1.SortOrder.field:type_name -> stdl.v1.SortOrder.Field
+	3,  // 11: stdl.v1.ReadResponse.entry:type_name -> stdl.v1.Entry
+	2,  // 12: stdl.v1.UpdateRequest.entryBody:type_name -> stdl.v1.EntryBody
+	6,  // 13: stdl.v1.UpdateRequest.entryMutable:type_name -> stdl.v1.EntryMutables
+	3,  // 14: stdl.v1.UpdateResponse.entries:type_name -> stdl.v1.Entry
+	9,  // 15: stdl.v1.STDList.Read:input_type -> stdl.v1.ReadRequest
+	14, // 16: stdl.v1.STDList.Update:input_type -> stdl.v1.UpdateRequest
+	16, // 17: stdl.v1.STDList.Delete:input_type -> stdl.v1.DeleteRequest
+	13, // 18: stdl.v1.STDList.Read:output_type -> stdl.v1.ReadResponse
+	15, // 19: stdl.v1.STDList.Update:output_type -> stdl.v1.UpdateResponse
+	17, // 20: stdl.v1.STDList.Delete:output_type -> stdl.v1.DeleteResponse
+	18, // [18:21] is the sub-list for method output_type
+	15, // [15:18] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_stdl_v1_stdl_proto_init() }
