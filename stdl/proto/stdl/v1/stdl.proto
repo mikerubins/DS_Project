@@ -70,6 +70,7 @@ message EntryMutables {
 // ---- Read --------------------------------------------------------------
 message ReadOneRequest {
     string task = 1;
+    Consistency consistency = 2;
 }
 
 message ReadMultipleRequests {
