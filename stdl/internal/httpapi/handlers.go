@@ -29,13 +29,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	kvsv1 "github.com/your-team/kvs/gen/kvs/v1"
-	"github.com/your-team/kvs/gen/rest"
+	stdlv1 "github.com/mikerubins/DS_Project/stdl/gen/stdl/v1"
+	"github.com/mikerubins/DS_Project/stdl/gen/rest"
 )
 
 // Handlers implements rest.StrictServerInterface (one method per operationId).
 type Handlers struct {
-	KV kvsv1.KVStoreClient
+	STDL stdlv1.STDLClient
 }
 
 // Compile-time check: the build fails here if a method is missing or has the
@@ -43,8 +43,8 @@ type Handlers struct {
 var _ rest.StrictServerInterface = (*Handlers)(nil)
 
 // NewHTTPHandler wires the strict handlers into a net/http mux.
-func NewHTTPHandler(kv kvsv1.KVStoreClient, mux *http.ServeMux) http.Handler {
-	strict := rest.NewStrictHandlerWithOptions(&Handlers{KV: kv}, nil, rest.StrictHTTPServerOptions{
+func NewHTTPHandler(stdl stdlv1.STDLClient, mux *http.ServeMux) http.Handler {
+	strict := rest.NewStrictHandlerWithOptions(&Handlers{STDL: stdl}, nil, rest.StrictHTTPServerOptions{
 		// Malformed requests (bad JSON, wrong parameter types) -> 400.
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			writeProblem(w, http.StatusBadRequest, err.Error())

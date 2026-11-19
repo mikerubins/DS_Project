@@ -11,9 +11,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.2
-// source: kvs/v1/kvs.proto
+// source: stdl/v1/stdl.proto
 
-package kvsv1
+package stdlv1
 
 import (
 	context "context"
@@ -28,36 +28,36 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	KVStore_Read_FullMethodName   = "/kvs.v1.KVStore/Read"
-	KVStore_Update_FullMethodName = "/kvs.v1.KVStore/Update"
-	KVStore_Delete_FullMethodName = "/kvs.v1.KVStore/Delete"
+	STDList_Read_FullMethodName   = "/stdl.v1.STDList/Read"
+	STDList_Update_FullMethodName = "/stdl.v1.STDList/Update"
+	STDList_Delete_FullMethodName = "/stdl.v1.STDList/Delete"
 )
 
-// KVStoreClient is the client API for KVStore service.
+// STDListClient is the client API for STDList service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type KVStoreClient interface {
-	// One key, a list, a prefix or a range; results stream back sorted.
-	// NOT_FOUND only when a single key was asked for and it is missing.
+type STDListClient interface {
+	// One task, a list, a prefix or a range; results stream back sorted.
+	// NOT_FOUND only when a single task was asked for and it is missing.
 	Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ReadResponse], error)
-	// One UpdateRequest per key; all are applied atomically when the client
+	// One UpdateRequest per task; all are applied atomically when the client
 	// closes the stream. FAILED_PRECONDITION if any if_version differs.
 	Update(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UpdateRequest, UpdateResponse], error)
-	// One DeleteRequest per key; applied atomically on close.
+	// One DeleteRequest per task; applied atomically on close.
 	Delete(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[DeleteRequest, DeleteResponse], error)
 }
 
-type kVStoreClient struct {
+type sTDListClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewKVStoreClient(cc grpc.ClientConnInterface) KVStoreClient {
-	return &kVStoreClient{cc}
+func NewSTDListClient(cc grpc.ClientConnInterface) STDListClient {
+	return &sTDListClient{cc}
 }
 
-func (c *kVStoreClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ReadResponse], error) {
+func (c *sTDListClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ReadResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &KVStore_ServiceDesc.Streams[0], KVStore_Read_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &STDList_ServiceDesc.Streams[0], STDList_Read_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +72,11 @@ func (c *kVStoreClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type KVStore_ReadClient = grpc.ServerStreamingClient[ReadResponse]
+type STDList_ReadClient = grpc.ServerStreamingClient[ReadResponse]
 
-func (c *kVStoreClient) Update(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UpdateRequest, UpdateResponse], error) {
+func (c *sTDListClient) Update(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UpdateRequest, UpdateResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &KVStore_ServiceDesc.Streams[1], KVStore_Update_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &STDList_ServiceDesc.Streams[1], STDList_Update_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +85,11 @@ func (c *kVStoreClient) Update(ctx context.Context, opts ...grpc.CallOption) (gr
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type KVStore_UpdateClient = grpc.ClientStreamingClient[UpdateRequest, UpdateResponse]
+type STDList_UpdateClient = grpc.ClientStreamingClient[UpdateRequest, UpdateResponse]
 
-func (c *kVStoreClient) Delete(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[DeleteRequest, DeleteResponse], error) {
+func (c *sTDListClient) Delete(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[DeleteRequest, DeleteResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &KVStore_ServiceDesc.Streams[2], KVStore_Delete_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &STDList_ServiceDesc.Streams[2], STDList_Delete_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -98,108 +98,108 @@ func (c *kVStoreClient) Delete(ctx context.Context, opts ...grpc.CallOption) (gr
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type KVStore_DeleteClient = grpc.ClientStreamingClient[DeleteRequest, DeleteResponse]
+type STDList_DeleteClient = grpc.ClientStreamingClient[DeleteRequest, DeleteResponse]
 
-// KVStoreServer is the server API for KVStore service.
-// All implementations must embed UnimplementedKVStoreServer
+// STDListServer is the server API for STDList service.
+// All implementations must embed UnimplementedSTDListServer
 // for forward compatibility.
-type KVStoreServer interface {
-	// One key, a list, a prefix or a range; results stream back sorted.
-	// NOT_FOUND only when a single key was asked for and it is missing.
+type STDListServer interface {
+	// One task, a list, a prefix or a range; results stream back sorted.
+	// NOT_FOUND only when a single task was asked for and it is missing.
 	Read(*ReadRequest, grpc.ServerStreamingServer[ReadResponse]) error
-	// One UpdateRequest per key; all are applied atomically when the client
+	// One UpdateRequest per task; all are applied atomically when the client
 	// closes the stream. FAILED_PRECONDITION if any if_version differs.
 	Update(grpc.ClientStreamingServer[UpdateRequest, UpdateResponse]) error
-	// One DeleteRequest per key; applied atomically on close.
+	// One DeleteRequest per task; applied atomically on close.
 	Delete(grpc.ClientStreamingServer[DeleteRequest, DeleteResponse]) error
-	mustEmbedUnimplementedKVStoreServer()
+	mustEmbedUnimplementedSTDListServer()
 }
 
-// UnimplementedKVStoreServer must be embedded to have
+// UnimplementedSTDListServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedKVStoreServer struct{}
+type UnimplementedSTDListServer struct{}
 
-func (UnimplementedKVStoreServer) Read(*ReadRequest, grpc.ServerStreamingServer[ReadResponse]) error {
+func (UnimplementedSTDListServer) Read(*ReadRequest, grpc.ServerStreamingServer[ReadResponse]) error {
 	return status.Error(codes.Unimplemented, "method Read not implemented")
 }
-func (UnimplementedKVStoreServer) Update(grpc.ClientStreamingServer[UpdateRequest, UpdateResponse]) error {
+func (UnimplementedSTDListServer) Update(grpc.ClientStreamingServer[UpdateRequest, UpdateResponse]) error {
 	return status.Error(codes.Unimplemented, "method Update not implemented")
 }
-func (UnimplementedKVStoreServer) Delete(grpc.ClientStreamingServer[DeleteRequest, DeleteResponse]) error {
+func (UnimplementedSTDListServer) Delete(grpc.ClientStreamingServer[DeleteRequest, DeleteResponse]) error {
 	return status.Error(codes.Unimplemented, "method Delete not implemented")
 }
-func (UnimplementedKVStoreServer) mustEmbedUnimplementedKVStoreServer() {}
-func (UnimplementedKVStoreServer) testEmbeddedByValue()                 {}
+func (UnimplementedSTDListServer) mustEmbedUnimplementedSTDListServer() {}
+func (UnimplementedSTDListServer) testEmbeddedByValue()                 {}
 
-// UnsafeKVStoreServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to KVStoreServer will
+// UnsafeSTDListServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to STDListServer will
 // result in compilation errors.
-type UnsafeKVStoreServer interface {
-	mustEmbedUnimplementedKVStoreServer()
+type UnsafeSTDListServer interface {
+	mustEmbedUnimplementedSTDListServer()
 }
 
-func RegisterKVStoreServer(s grpc.ServiceRegistrar, srv KVStoreServer) {
-	// If the following call panics, it indicates UnimplementedKVStoreServer was
+func RegisterSTDListServer(s grpc.ServiceRegistrar, srv STDListServer) {
+	// If the following call panics, it indicates UnimplementedSTDListServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&KVStore_ServiceDesc, srv)
+	s.RegisterService(&STDList_ServiceDesc, srv)
 }
 
-func _KVStore_Read_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _STDList_Read_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(ReadRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(KVStoreServer).Read(m, &grpc.GenericServerStream[ReadRequest, ReadResponse]{ServerStream: stream})
+	return srv.(STDListServer).Read(m, &grpc.GenericServerStream[ReadRequest, ReadResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type KVStore_ReadServer = grpc.ServerStreamingServer[ReadResponse]
+type STDList_ReadServer = grpc.ServerStreamingServer[ReadResponse]
 
-func _KVStore_Update_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(KVStoreServer).Update(&grpc.GenericServerStream[UpdateRequest, UpdateResponse]{ServerStream: stream})
+func _STDList_Update_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(STDListServer).Update(&grpc.GenericServerStream[UpdateRequest, UpdateResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type KVStore_UpdateServer = grpc.ClientStreamingServer[UpdateRequest, UpdateResponse]
+type STDList_UpdateServer = grpc.ClientStreamingServer[UpdateRequest, UpdateResponse]
 
-func _KVStore_Delete_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(KVStoreServer).Delete(&grpc.GenericServerStream[DeleteRequest, DeleteResponse]{ServerStream: stream})
+func _STDList_Delete_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(STDListServer).Delete(&grpc.GenericServerStream[DeleteRequest, DeleteResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type KVStore_DeleteServer = grpc.ClientStreamingServer[DeleteRequest, DeleteResponse]
+type STDList_DeleteServer = grpc.ClientStreamingServer[DeleteRequest, DeleteResponse]
 
-// KVStore_ServiceDesc is the grpc.ServiceDesc for KVStore service.
+// STDList_ServiceDesc is the grpc.ServiceDesc for STDList service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var KVStore_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "kvs.v1.KVStore",
-	HandlerType: (*KVStoreServer)(nil),
+var STDList_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "stdl.v1.STDList",
+	HandlerType: (*STDListServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Read",
-			Handler:       _KVStore_Read_Handler,
+			Handler:       _STDList_Read_Handler,
 			ServerStreams: true,
 		},
 		{
 			StreamName:    "Update",
-			Handler:       _KVStore_Update_Handler,
+			Handler:       _STDList_Update_Handler,
 			ClientStreams: true,
 		},
 		{
 			StreamName:    "Delete",
-			Handler:       _KVStore_Delete_Handler,
+			Handler:       _STDList_Delete_Handler,
 			ClientStreams: true,
 		},
 	},
-	Metadata: "kvs/v1/kvs.proto",
+	Metadata: "stdl/v1/stdl.proto",
 }

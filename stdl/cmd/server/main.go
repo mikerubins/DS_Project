@@ -22,10 +22,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/your-team/kvs/api"
-	kvsv1 "github.com/your-team/kvs/gen/kvs/v1"
-	"github.com/your-team/kvs/internal/grpcsvc"
-	"github.com/your-team/kvs/internal/httpapi"
+	"github.com/mikerubins/DS_Project/stdl/api"
+	stdlv1 "mikerubins/DS_Project/stdl/gen/kvs/v1"
+	"mikerubins/DS_Project/stdl/internal/grpcsvc"
+	"gmikerubins/DS_Project/stdl/internal/httpapi"
 )
 
 func main() {
@@ -45,7 +45,7 @@ func main() {
 		log.Fatalf("listen %s: %v", *grpcAddr, err)
 	}
 	gs := grpc.NewServer()
-	kvsv1.RegisterKVStoreServer(gs, grpcsvc.New(*id))
+	stdlv1.RegisterSTDLServer(gs, grpcsvc.New(*id))
 	reflection.Register(gs) // lets you poke the server with grpcurl
 	go func() {
 		log.Printf("[%s] gRPC listening on %s", *id, *grpcAddr)
@@ -82,7 +82,7 @@ func main() {
 	})
 	hs := &http.Server{
 		Addr:              *httpAddr,
-		Handler:           withCORS(*corsOrigin, httpapi.NewHTTPHandler(kvsv1.NewKVStoreClient(conn), mux)),
+		Handler:           withCORS(*corsOrigin, httpapi.NewHTTPHandler(stdlv1.NewSTDLClient(conn), mux)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {

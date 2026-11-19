@@ -107,9 +107,9 @@ message UpdateRequest {
   string task = 1;
   oneof op {
     EntryBody entryBody = 2;             // create or replace the value
-    EntryMutable entryMutable = 3;       // modify fields
+    EntryMutables entryMutable = 3;       // modify fields
   }
-  optional int64 if_version = 5; // CAS; 0 = task must not exist
+  optional int64 if_version = 4; // CAS; 0 = task must not exist
 }
 message UpdateResponse {
   repeated Entry entries = 1;   // entries after the update, request order
