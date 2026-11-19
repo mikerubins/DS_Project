@@ -94,12 +94,12 @@ func (e GetTasksParamsSort) Valid() bool {
 	}
 }
 
-// AppendAction Append action for participants
+// AppendAction Append participants without removing existing participants.
 type AppendAction struct {
 	Participants *[]string `json:"participants,omitempty"`
 }
 
-// Consistency defines model for Consistency.
+// Consistency Sequential or linearizable read consistency.
 type Consistency string
 
 // DeleteResult defines model for DeleteResult.
@@ -107,11 +107,13 @@ type DeleteResult struct {
 	Deleted int32 `json:"deleted"`
 }
 
-// Entry defines model for Entry.
+// Entry A task identifier and its complete task body.
 type Entry struct {
 	// EntryBody Schema of the task body
 	EntryBody EntryBody `json:"entryBody"`
-	Task      string    `json:"task"`
+
+	// Task Unique task identifier.
+	Task string `json:"task"`
 }
 
 // EntryBody Schema of the task body
@@ -136,15 +138,19 @@ type EntryList struct {
 
 // EntryMutables Exactly one of modifyFields, appendParticipants, or incrementVersion
 type EntryMutables struct {
-	// AppendParticipants Append action for participants
+	// AppendParticipants Append participants without removing existing participants.
 	AppendParticipants *AppendAction `json:"appendParticipants,omitempty"`
-	IncrementVersion   *bool         `json:"incrementVersion,omitempty"`
 
-	// ModifyFields Modify action in EntryMutables message
+	// IncrementVersion Set to true to increment the task version.
+	IncrementVersion *bool `json:"incrementVersion,omitempty"`
+
+	// ModifyFields Selects individual mutable fields and supplies replacement values.
+	// Each mutable flag applies only to the corresponding field.
 	ModifyFields *ModifyAction `json:"modifyFields,omitempty"`
 }
 
-// ModifyAction Modify action in EntryMutables message
+// ModifyAction Selects individual mutable fields and supplies replacement values.
+// Each mutable flag applies only to the corresponding field.
 type ModifyAction struct {
 	AppendParticipants *bool `json:"appendParticipants,omitempty"`
 	CompletedMutable   *bool `json:"completedMutable,omitempty"`
@@ -158,7 +164,7 @@ type ModifyAction struct {
 	VersionMutable      *bool      `json:"versionMutable,omitempty"`
 }
 
-// ModifyBody defines model for ModifyBody.
+// ModifyBody Exactly one mutation to apply to one task.
 type ModifyBody struct {
 	// EntryMutables Exactly one of modifyFields, appendParticipants, or incrementVersion
 	EntryMutables EntryMutables `json:"entryMutables"`
@@ -187,7 +193,7 @@ type Problem struct {
 	Type  *string `json:"type,omitempty"`
 }
 
-// SetBody defines model for SetBody.
+// SetBody Complete task body for a create-or-replace operation.
 type SetBody struct {
 	// EntryBody Schema of the task body
 	EntryBody EntryBody `json:"entryBody"`
@@ -247,7 +253,9 @@ type GetTasksParams struct {
 	Limit *int32 `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// TasksOnly Return only the tasks (values empty)
-	TasksOnly   *bool        `form:"tasksOnly,omitempty" json:"tasksOnly,omitempty"`
+	TasksOnly *bool `form:"tasksOnly,omitempty" json:"tasksOnly,omitempty"`
+
+	// Consistency Read consistency. Defaults to sequential.
 	Consistency *Consistency `form:"consistency,omitempty" json:"consistency,omitempty"`
 }
 
@@ -262,6 +270,7 @@ type DeleteTaskParams struct {
 
 // GetTaskParams defines parameters for GetTask.
 type GetTaskParams struct {
+	// Consistency Read consistency. Defaults to sequential.
 	Consistency *Consistency `form:"consistency,omitempty" json:"consistency,omitempty"`
 }
 
@@ -297,7 +306,7 @@ type ServerInterface interface {
 	// GetTasks Read several tasks, sorted by task ID
 	// (GET /v1/tasks)
 	GetTasks(w http.ResponseWriter, r *http.Request, params GetTasksParams)
-	// ModifyTasks Append to or increment several tasks atomically (read-modify-write)
+	// ModifyTasks Modify several tasks atomically
 	// (PATCH /v1/tasks)
 	ModifyTasks(w http.ResponseWriter, r *http.Request)
 	// SetTasks Set several tasks atomically
@@ -309,7 +318,7 @@ type ServerInterface interface {
 	// GetTask Read one task
 	// (GET /v1/tasks/{task})
 	GetTask(w http.ResponseWriter, r *http.Request, task Task, params GetTaskParams)
-	// ModifyTask Append to or increment one task (read-modify-write)
+	// ModifyTask Modify one task
 	// (PATCH /v1/tasks/{task})
 	ModifyTask(w http.ResponseWriter, r *http.Request, task Task, params ModifyTaskParams)
 	// SetTask Set one task (create or replace)
@@ -1086,9 +1095,23 @@ func (response DeleteTask204Response) VisitDeleteTaskResponse(w http.ResponseWri
 	return nil
 }
 
-type DeleteTask412ApplicationProblemPlusJSONResponse struct {
+type DeleteTask400ApplicationProblemPlusJSONResponse struct {
 	ProblemApplicationProblemPlusJSONResponse
 }
+
+func (response DeleteTask400ApplicationProblemPlusJSONResponse) VisitDeleteTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteTask412ApplicationProblemPlusJSONResponse Problem
 
 func (response DeleteTask412ApplicationProblemPlusJSONResponse) VisitDeleteTaskResponse(w http.ResponseWriter) error {
 
@@ -1281,7 +1304,7 @@ type StrictServerInterface interface {
 	// GetTasks Read several tasks, sorted by task ID
 	// (GET /v1/tasks)
 	GetTasks(ctx context.Context, request GetTasksRequestObject) (GetTasksResponseObject, error)
-	// ModifyTasks Append to or increment several tasks atomically (read-modify-write)
+	// ModifyTasks Modify several tasks atomically
 	// (PATCH /v1/tasks)
 	ModifyTasks(ctx context.Context, request ModifyTasksRequestObject) (ModifyTasksResponseObject, error)
 	// SetTasks Set several tasks atomically
@@ -1293,7 +1316,7 @@ type StrictServerInterface interface {
 	// GetTask Read one task
 	// (GET /v1/tasks/{task})
 	GetTask(ctx context.Context, request GetTaskRequestObject) (GetTaskResponseObject, error)
-	// ModifyTask Append to or increment one task (read-modify-write)
+	// ModifyTask Modify one task
 	// (PATCH /v1/tasks/{task})
 	ModifyTask(ctx context.Context, request ModifyTaskRequestObject) (ModifyTaskResponseObject, error)
 	// SetTask Set one task (create or replace)
