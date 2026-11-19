@@ -1,4 +1,4 @@
-module module github.com/mikerubins/DS_Project/stdl
+module github.com/mikerubins/DS_Project/stdl
 
 go 1.26.0
 
