@@ -35,7 +35,7 @@ import (
 
 // Handlers implements rest.StrictServerInterface (one method per operationId).
 type Handlers struct {
-	STDL stdlv1.STDLClient
+	STDL stdlv1.STDLClient // gRPC client to the node that will answer the request
 }
 
 // Compile-time check: the build fails here if a method is missing or has the
@@ -71,13 +71,15 @@ func (h *Handlers) GetTasks(ctx context.Context, req rest.GetTasksRequestObject)
 		Limit:       deref(p.Limit),
 		KeysOnly:    deref(p.KeysOnly),
 		Consistency: toProtoConsistency(p.Consistency)
-
+/*
 		ReadMultipleRequests: &stdlv1.ReadMultipleRequests{
             Sort:        toProtoSort(p.Sort),
             Limit:       deref(p.Limit),
             TasksOnly:    deref(p.KeysOnly),
             Consistency: toProtoConsistency(p.Consistency)
 		}
+			*/
+		ReadMultipleRequests: &stdlv1.ReadMultipleRequests{
 	}
 
 
