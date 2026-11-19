@@ -75,7 +75,7 @@ message ReadOneRequest {
 message ReadMultipleRequests {
     repeated string tasks = 1; // task number filter
     repeated string participants = 2; // task participants filter
-    repeated string priorities = 3; // task priorities filter
+    repeated int32 priorities = 3; // task priorities filter
     bool byCompleted = 4; // task completed filter
     bool byOpen = 5; // task open filter
     string prefix = 6; // task prefix filter
