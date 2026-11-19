@@ -1,30 +1,88 @@
 #!/usr/bin/env sh
-# Smoke test of the key-value EXAMPLE (replace with calls to your service).
-# Start `make run` (and optionally `make run2`) first.
+# Smoke-test every task REST operation and its documented status codes.
+# Start `make run` first. For the forwarding node, pass http://localhost:8081.
 # Usage: ./etc/demo.sh [base-url]     default: http://localhost:8080
+set -eu
+
 B=${1:-http://localhost:8080}
-J='Content-Type: application/json'
-set -x
-# --- reads: GET -> Read ---------------------------------------------------
-curl -si "$B/v1/keys/alpha?consistency=linearizable" | grep -iE '^(HTTP|etag)|^\{' # 200 + ETag
-curl -si "$B/v1/keys/missing" | head -1                               # 404
-curl -s  "$B/v1/keys?key=gamma&key=alpha&key=missing&sort=-key"       ; echo  # missing skipped
-curl -s  "$B/v1/keys?prefix=a&keysOnly=true&limit=2"                   ; echo
-curl -si "$B/v1/keys?key=alpha&prefix=a" | head -1                    # 400: two selectors
-# --- set: POST -> Update(set) ---------------------------------------------
-curl -si -X POST "$B/v1/keys/alpha"   -H "$J" -d '{"value":"42"}' | head -1   # 200 replaced
-curl -si -X POST "$B/v1/keys/missing" -H "$J" -d '{"value":"42"}' | head -1   # 201 created
-curl -si -X POST "$B/v1/keys/alpha"   -H "$J" -H 'If-Match: "7"' -d '{"value":"x"}' | head -1  # 412
-curl -s  -X POST "$B/v1/keys" -H "$J" -d '{"entries":[{"key":"a","value":"1"},{"key":"b","value":"2"}]}' ; echo
-# --- read-modify-write: PATCH -> Update(append|increment) -----------------
-curl -s  -X PATCH "$B/v1/keys/counter" -H "$J" -d '{"increment":1}'    ; echo
-curl -s  -X PATCH "$B/v1/keys/log"     -H "$J" -d '{"append":"!"}'     ; echo
-curl -si -X PATCH "$B/v1/keys/log"     -H "$J" -d '{}' | head -1       # 400: no operand
-curl -s  -X PATCH "$B/v1/keys" -H "$J" -d '{"ops":[{"key":"c","increment":5},{"key":"l","append":"x"}]}' ; echo
-# --- delete: DELETE -> Delete ---------------------------------------------
-curl -si -X DELETE "$B/v1/keys/alpha" | head -1                       # 204
-curl -s  -X DELETE "$B/v1/keys?key=alpha&key=missing"                 ; echo  # {"deleted":1}
-# --- docs -----------------------------------------------------------------
-curl -s  "$B/openapi.yaml" | head -3
-curl -si "$B/docs"   | head -1                                        # Swagger UI (open in a browser)
-curl -si "$B/editor" | head -1                                        # Swagger Editor (open in a browser)
+B=${B%/}
+JSON='Content-Type: application/json'
+FAIL=0
+
+# expect <status> <method> <path> [curl arguments...]
+expect() {
+  want=$1
+  method=$2
+  path=$3
+  shift 3
+
+  if ! got=$(curl -sS -o /dev/null -w '%{http_code}' -X "$method" "$B$path" "$@"); then
+    printf 'FAIL curl %s %s %s\n' "$method" "$B$path" "$want"
+    FAIL=1
+    return
+  fi
+  if [ "$got" = "$want" ]; then
+    printf 'ok   %s %-6s %s\n' "$got" "$method" "$path"
+  else
+    printf 'FAIL %s %-6s %s (expected %s)\n' "$got" "$method" "$path" "$want"
+    FAIL=1
+  fi
+}
+
+echo "Testing $B"
+
+# GET /v1/tasks: 200, 400
+expect 200 GET '/v1/tasks?task=alpha&participant=alice&priority=1&limit=2'
+expect 400 GET '/v1/tasks?priority=6'
+
+# GET /v1/tasks/{task}: 200, 404
+expect 200 GET '/v1/tasks/alpha?consistency=linearizable'
+expect 404 GET '/v1/tasks/missing'
+
+# POST /v1/tasks: 200, 400, 412
+expect 200 POST '/v1/tasks' -H "$JSON" \
+  -d '{"entries":[{"task":"alpha","entryBody":{"name":"Demo","priority":2}}]}'
+expect 400 POST '/v1/tasks' -H "$JSON" -d '{bad json'
+expect 412 POST '/v1/tasks' -H "$JSON" \
+  -d '{"entries":[{"task":"alpha","entryBody":{"name":"Demo","priority":2},"ifVersion":99}]}'
+
+# PATCH /v1/tasks: 200, 400, 412
+expect 200 PATCH '/v1/tasks' -H "$JSON" \
+  -d '{"ops":[{"task":"alpha","entryMutables":{"incrementVersion":true}}]}'
+expect 400 PATCH '/v1/tasks' -H "$JSON" \
+  -d '{"ops":[{"task":"alpha","entryMutables":{}}]}'
+expect 412 PATCH '/v1/tasks' -H "$JSON" \
+  -d '{"ops":[{"task":"alpha","entryMutables":{"incrementVersion":true},"ifVersion":99}]}'
+
+# DELETE /v1/tasks: 200, 400
+expect 200 DELETE '/v1/tasks?task=alpha&task=missing'
+expect 400 DELETE '/v1/tasks'
+
+# POST /v1/tasks/{task}: 200, 201, 400, 412
+expect 200 POST '/v1/tasks/alpha' -H "$JSON" \
+  -d '{"entryBody":{"name":"Demo","description":"Example task","participants":["alice"],"priority":2,"completed":false}}'
+expect 201 POST '/v1/tasks/demo-new' -H "$JSON" \
+  -d '{"entryBody":{"name":"New demo task","priority":2}}'
+expect 400 POST '/v1/tasks/alpha' -H "$JSON" \
+  -d '{"entryBody":{"name":"Invalid priority","priority":6}}'
+expect 412 POST '/v1/tasks/alpha' -H "$JSON" -H 'If-Match: "99"' \
+  -d '{"entryBody":{"name":"Stale write","priority":2}}'
+
+# PATCH /v1/tasks/{task}: 200, 400, 412
+expect 200 PATCH '/v1/tasks/alpha' -H "$JSON" \
+  -d '{"entryMutables":{"incrementVersion":true}}'
+expect 400 PATCH '/v1/tasks/alpha' -H "$JSON" -d '{}'
+expect 412 PATCH '/v1/tasks/alpha' -H "$JSON" -H 'If-Match: "99"' \
+  -d '{"entryMutables":{"incrementVersion":true}}'
+
+# DELETE /v1/tasks/{task}: 204, 400, 412
+expect 204 DELETE '/v1/tasks/alpha'
+expect 400 DELETE '/v1/tasks/alpha' -H 'If-Match: not-a-version'
+expect 412 DELETE '/v1/tasks/alpha' -H 'If-Match: "99"'
+
+if [ "$FAIL" -ne 0 ]; then
+  echo "Some checks failed."
+  exit 1
+fi
+
+echo "All documented status checks passed for $B."
