@@ -182,7 +182,10 @@ func (h *Handlers) GetTask(ctx context.Context, req rest.GetTaskRequestObject) (
 	}
 	stream, err := h.STDL.Read(ctx, &stdlv1.ReadRequest{
 		Select: &stdlv1.ReadRequest_OneRequest{
-			OneRequest: &stdlv1.ReadOneRequest{Task: req.Task},
+			OneRequest: &stdlv1.ReadOneRequest{
+				Task:        req.Task,
+				Consistency: toProtoConsistency(req.Params.Consistency),
+			},
 		},
 	})
 	if err != nil {
@@ -394,11 +397,8 @@ func entryMutablesToProto(mutables rest.EntryMutables) (*stdlv1.EntryMutables, e
 	}, nil
 }
 
-func toProtoConsistency[T ~string](value *T) stdlv1.Consistency {
-	if value != nil && string(*value) == "linearizable" {
-		return stdlv1.Consistency_CONSISTENCY_LINEARIZABLE
-	}
-	return stdlv1.Consistency_CONSISTENCY_SEQUENTIAL
+func toProtoConsistency[T ~string](_ *T) stdlv1.Consistency {
+	return stdlv1.Consistency_CONSISTENCY_UNSPECIFIED
 }
 
 func toProtoSort[T ~string](value *T) *stdlv1.SortOrder {
