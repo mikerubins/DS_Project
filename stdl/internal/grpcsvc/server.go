@@ -16,17 +16,20 @@ import (
 
 type Server struct {
 	stdlv1.UnimplementedSTDListServer
-	NodeID string
+	NodeID string // Identifies the node in dummy/logging responses.
 }
 
 func New(nodeID string) *Server {
 	return &Server{NodeID: nodeID}
 }
 
+// dummyTaskNames is the fixed task set returned by the Part I service.
 var dummyTaskNames = []string{"alpha", "beta", "gamma"}
 
 const dummyVersion int64 = 1
 
+// dummyEntry returns the fixed EntryBody for a known task. It also acts as
+// the existence check for Read, Update, and Delete operations.
 func dummyEntry(task string) *stdlv1.Entry {
 	switch task {
 	case "alpha":
