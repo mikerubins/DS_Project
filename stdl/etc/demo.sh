@@ -84,13 +84,14 @@ wait_for_server n2 "$P2" http://localhost:8081 "$N2_LOG"
 
 JSON='Content-Type: application/json'
 
-# expect <base-url> <status> <method> <path> [curl arguments...]
+# expect <base-url> <route-label> <status> <method> <path> [curl arguments...]
 expect() {
   base=$1
-  want=$2
-  method=$3
-  path=$4
-  shift 4
+  route=$2
+  want=$3
+  method=$4
+  path=$5
+  shift 5
 
   if ! got=$(curl -sS -o /dev/null -w '%{http_code}' -X "$method" "$base$path" "$@"); then
     printf 'FAIL curl %s %s %s\n' "$method" "$base$path" "$want"
@@ -98,78 +99,83 @@ expect() {
     return
   fi
   if [ "$got" = "$want" ]; then
-    printf 'ok   %s %-6s %s\n' "$got" "$method" "$path"
+    printf 'ok   %s [%s] %-6s %s\n' "$got" "$route" "$method" "$path"
   else
-    printf 'FAIL %s %-6s %s (expected %s)\n' "$got" "$method" "$path" "$want"
+    printf 'FAIL %s [%s] %-6s %s (expected status %s)\n' "$got" "$route" "$method" "$path" "$want"
     FAIL=1
   fi
 }
 
 run_suite() {
   B=$1
+  REST_NODE=$2
+  GRPC_NODE=$3
+  ROUTE="HTTP $REST_NODE"
   FAIL=0
-  echo "Testing $B"
+  echo "Testing $B (response from $ROUTE; RPC target $GRPC_NODE)"
 
   # GET /v1/tasks: 200, 400
-  expect "$B" 200 GET '/v1/tasks?task=alpha&participant=alice&priority=1&limit=2'
-  expect "$B" 400 GET '/v1/tasks?priority=6'
+  expect "$B" "$ROUTE" 200 GET '/v1/tasks?task=alpha&participant=alice&priority=1&limit=2'
+  expect "$B" "$ROUTE" 400 GET '/v1/tasks?priority=6'
 
   # GET /v1/tasks/{task}: 200, 404
-  expect "$B" 200 GET '/v1/tasks/alpha?consistency=linearizable'
-  expect "$B" 404 GET '/v1/tasks/missing'
+  expect "$B" "$ROUTE" 200 GET '/v1/tasks/alpha?consistency=linearizable'
+  expect "$B" "$ROUTE" 404 GET '/v1/tasks/missing'
 
   # POST /v1/tasks: 200, 400, 412
-  expect "$B" 200 POST '/v1/tasks' -H "$JSON" \
+  expect "$B" "$ROUTE" 200 POST '/v1/tasks' -H "$JSON" \
     -d '{"entries":[{"task":"alpha","entryBody":{"name":"Demo","priority":2}}]}'
-  expect "$B" 400 POST '/v1/tasks' -H "$JSON" -d '{bad json'
-  expect "$B" 412 POST '/v1/tasks' -H "$JSON" \
+  expect "$B" "$ROUTE" 400 POST '/v1/tasks' -H "$JSON" -d '{bad json'
+  expect "$B" "$ROUTE" 412 POST '/v1/tasks' -H "$JSON" \
     -d '{"entries":[{"task":"alpha","entryBody":{"name":"Demo","priority":2},"ifVersion":99}]}'
 
   # PATCH /v1/tasks: 200, 400, 412
-  expect "$B" 200 PATCH '/v1/tasks' -H "$JSON" \
+  expect "$B" "$ROUTE" 200 PATCH '/v1/tasks' -H "$JSON" \
     -d '{"ops":[{"task":"alpha","entryMutables":{"incrementVersion":true}}]}'
-  expect "$B" 400 PATCH '/v1/tasks' -H "$JSON" \
+  expect "$B" "$ROUTE" 400 PATCH '/v1/tasks' -H "$JSON" \
     -d '{"ops":[{"task":"alpha","entryMutables":{}}]}'
-  expect "$B" 412 PATCH '/v1/tasks' -H "$JSON" \
+  expect "$B" "$ROUTE" 412 PATCH '/v1/tasks' -H "$JSON" \
     -d '{"ops":[{"task":"alpha","entryMutables":{"incrementVersion":true},"ifVersion":99}]}'
 
   # DELETE /v1/tasks: 200, 400
-  expect "$B" 200 DELETE '/v1/tasks?task=alpha&task=missing'
-  expect "$B" 400 DELETE '/v1/tasks'
+  expect "$B" "$ROUTE" 200 DELETE '/v1/tasks?task=alpha&task=missing'
+  expect "$B" "$ROUTE" 400 DELETE '/v1/tasks'
 
   # POST /v1/tasks/{task}: 200, 201, 400, 412
-  expect "$B" 200 POST '/v1/tasks/alpha' -H "$JSON" \
+  expect "$B" "$ROUTE" 200 POST '/v1/tasks/alpha' -H "$JSON" \
     -d '{"entryBody":{"name":"Demo","description":"Example task","participants":["alice"],"priority":2,"completed":false}}'
-  expect "$B" 201 POST '/v1/tasks/demo-new' -H "$JSON" \
+  expect "$B" "$ROUTE" 201 POST '/v1/tasks/demo-new' -H "$JSON" \
     -d '{"entryBody":{"name":"New demo task","priority":2}}'
-  expect "$B" 400 POST '/v1/tasks/alpha' -H "$JSON" \
+  expect "$B" "$ROUTE" 400 POST '/v1/tasks/alpha' -H "$JSON" \
     -d '{"entryBody":{"name":"Invalid priority","priority":6}}'
-  expect "$B" 412 POST '/v1/tasks/alpha' -H "$JSON" -H 'If-Match: "99"' \
+  expect "$B" "$ROUTE" 412 POST '/v1/tasks/alpha' -H "$JSON" -H 'If-Match: "99"' \
     -d '{"entryBody":{"name":"Stale write","priority":2}}'
 
   # PATCH /v1/tasks/{task}: 200, 400, 412
-  expect "$B" 200 PATCH '/v1/tasks/alpha' -H "$JSON" \
+  expect "$B" "$ROUTE" 200 PATCH '/v1/tasks/alpha' -H "$JSON" \
     -d '{"entryMutables":{"incrementVersion":true}}'
-  expect "$B" 400 PATCH '/v1/tasks/alpha' -H "$JSON" -d '{}'
-  expect "$B" 412 PATCH '/v1/tasks/alpha' -H "$JSON" -H 'If-Match: "99"' \
+  expect "$B" "$ROUTE" 400 PATCH '/v1/tasks/alpha' -H "$JSON" -d '{}'
+  expect "$B" "$ROUTE" 412 PATCH '/v1/tasks/alpha' -H "$JSON" -H 'If-Match: "99"' \
     -d '{"entryMutables":{"incrementVersion":true}}'
 
   # DELETE /v1/tasks/{task}: 204, 400, 412
-  expect "$B" 204 DELETE '/v1/tasks/alpha'
-  expect "$B" 400 DELETE '/v1/tasks/alpha' -H 'If-Match: not-a-version'
-  expect "$B" 412 DELETE '/v1/tasks/alpha' -H 'If-Match: "99"'
+  expect "$B" "$ROUTE" 204 DELETE '/v1/tasks/alpha'
+  expect "$B" "$ROUTE" 400 DELETE '/v1/tasks/alpha' -H 'If-Match: not-a-version'
+  expect "$B" "$ROUTE" 412 DELETE '/v1/tasks/alpha' -H 'If-Match: "99"'
 
   if [ "$FAIL" -ne 0 ]; then
     echo "Some checks failed for $B."
     return 1
   fi
+  printf 'Sample dummy response (HTTP %s, gRPC reply from %s):\n' "$REST_NODE" "$GRPC_NODE"
+  curl -sS -w '\n' "$B/v1/tasks/alpha"
   echo "All documented status checks passed for $B."
 }
 
 echo "Running the same checks against both nodes in parallel..."
-run_suite http://localhost:8080 >"$TEST_8080_LOG" 2>&1 &
+run_suite http://localhost:8080 n1 n1 >"$TEST_8080_LOG" 2>&1 &
 T1=$!
-run_suite http://localhost:8081 >"$TEST_8081_LOG" 2>&1 &
+run_suite http://localhost:8081 n2 n1 >"$TEST_8081_LOG" 2>&1 &
 T2=$!
 
 FAIL=0
