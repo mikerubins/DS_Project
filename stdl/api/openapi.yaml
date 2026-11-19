@@ -89,12 +89,12 @@ paths:
           in: query
           required: false
           description: Filter completed tasks
-          schema: { type: boolean, default: true }
+          schema: { type: boolean }
         - name: byOpen
           in: query
           required: false
           description: Filter open tasks
-          schema: { type: boolean, default: true }
+          schema: { type: boolean }
         - name: limit
           in: query
           required: false
@@ -361,13 +361,14 @@ components:
 
     EntryMutables:
       type: object
-      description: Acts as a raw properties modifier or a version increment or participant append, Exactly one of `append`, `modify` or `increment`
+      description: Exactly one of modifyFields, appendParticipants, or incrementVersion
       properties:
-        oneOf:
-            - $ref: '#/components/schemas/ModifyAction'
-            - $ref: '#/components/schemas/AppendAction'
-            - incrementVersion:
-                type: boolean
+        modifyFields:
+          $ref: '#/components/schemas/ModifyAction'
+        appendParticipants:
+          $ref: '#/components/schemas/AppendAction'
+        incrementVersion:
+          type: boolean
 
     EntryList:
       type: object
@@ -381,7 +382,7 @@ components:
       type: object
       required: [entryBody]
       properties:
-        entry: { $ref: '#/components/schemas/EntryBody' }
+        entryBody: { $ref: '#/components/schemas/EntryBody' }
 
     ModifyBody:
       required: [entryMutables]
@@ -400,7 +401,7 @@ components:
             required: [task, entryBody]
             properties:
               task: { type: string }
-              entry: { $ref: '#/components/schemas/EntryBody' }
+              entryBody: { $ref: '#/components/schemas/EntryBody' }
               ifVersion:
                 type: integer
                 format: int64
